@@ -6,7 +6,8 @@ library(lubridate)
 library(gt)
 library(stringi)
 
-d <- read_csv('data/glassdoor_reviews.csv', row.names = 1)
+d <- read_csv('data/glassdoor_reviews.csv') |>
+  select(-...1)
 
 #------------------
 # descriptive plots   
@@ -28,7 +29,7 @@ g <- d |>
                                    hjust = 1,
                                    size = 9))
 
-ggsave("figures/review_hist.pdf", g)
+ggsave("figures/review_hist.png", g)
 
 ##------------------
 ## Missingness
@@ -74,7 +75,7 @@ g <- miss_d |>
   labs(x = "", y = "", title = "Proportion of missing datapoints in key variables",
        subtitle = "Missingness in overall rating is ~0% when date is present")
 
-ggsave("figures/ratings_missingness.pdf", g)
+ggsave("figures/ratings_missingness.png", g)
 
 ### Missing dates
 d |>
@@ -112,11 +113,10 @@ g <- miss_r |>
   ggplot(aes(x=y_int3, y=prop_missing)) + 
   geom_col(fill = "steelblue") +
   facet_wrap(~var, scale="free_y") +
-  scale_y_continuous(labels=percent) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8)) +
   labs(x = "", y = "", title = "Proportion of missing datapoints in text reviews")
 
-ggsave("figures/reviews_missingness.pdf", g)
+ggsave("figures/reviews_missingness.png", g)
 
 
 
@@ -137,7 +137,7 @@ g <- d |>
   geom_histogram(binwidth=10, fill="steelblue") + 
   facet_grid(rows=vars(review_type))
 
-ggsave("figures/text_hist_full.pdf", g)
+ggsave("figures/text_hist_full.png", g)
 
 ### no outliers
 g <- d |> 
@@ -152,7 +152,7 @@ g <- d |>
   geom_histogram(binwidth=1, fill="steelblue") + 
   facet_grid(rows=vars(review_type))
 
-ggsave("figures/text_hist_full_no_outliers.pdf", g)
+ggsave("figures/text_hist_full_no_outliers.png", g)
 
 ## Length descriptives
 
@@ -178,8 +178,6 @@ len_d <- d |>
             n = n(),
             .groups = "drop")
 
-len_d
-
 ### Table
 len_d |> 
   gt() |> 
@@ -195,7 +193,7 @@ g <- len_d |>
        title = "Average review length in 3 year periods",
        subtitle = "No empty reviews")
 
-ggsave("figures/text_lengths.pdf", g)
+ggsave("figures/text_lengths.png", g)
 
 
 # Final clean data and save
@@ -206,6 +204,9 @@ d_clean <- d |>
   mutate(across(starts_with("review_"), #removes problematic characters (\n, \t, etc.)
                 ~ str_replace_all(., "[[:cntrl:]]", " "))) |>
   mutate(across(starts_with("review_"), ~ na_if(., ""))) |> 
+  filter(!(is.na(review_pros) &
+            is.na(review_cons) &
+             is.na(review_advice))) |> 
   mutate(across(starts_with("review_"), #normalizes white space
                 ~ str_squish(.))) |>
   mutate(across(starts_with("review_"), #everything to lowercase for consistency
