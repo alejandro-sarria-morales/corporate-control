@@ -3,12 +3,10 @@
 #------------
 library(tidyverse)
 library(lubridate)
-library(ggplot2)
-library(hrbrthemes)
-library(scales)
 library(gt)
+library(stringi)
 
-d <- read_csv('data/glassdoor_reviews.csv')
+d <- read_csv('data/glassdoor_reviews.csv', row.names = 1)
 
 #------------------
 # descriptive plots   
@@ -20,7 +18,7 @@ d <- read_csv('data/glassdoor_reviews.csv')
 
 g <- d |>
   filter(!is.na(date)) |>
-  mutate(y = factor(lubridate::year(date))) |>
+  mutate(y = factor(year(date))) |>
   ggplot(aes(x = y)) +
   geom_bar(fill = "steelblue") +
   labs(x = "", y = "",
@@ -193,10 +191,32 @@ g <- len_d |>
   geom_col(fill = "steelblue") +
   facet_wrap(~review, scale="free_y") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8)) +
-  labs(x = "", y = "", title = "Average review length in 3 year periods",
+  labs(x = "", y = "",
+       title = "Average review length in 3 year periods",
        subtitle = "No empty reviews")
 
 ggsave("figures/text_lengths.pdf", g)
+
+
+# Final clean data and save
+d_clean <- d |>  
+  filter(!is.na(date)) |> 
+  mutate(across(starts_with("review_"), #fixes issues with encoding
+                ~ stri_enc_toutf8(., is_unknown_8bit = TRUE))) |>
+  mutate(across(starts_with("review_"), #removes problematic characters (\n, \t, etc.)
+                ~ str_replace_all(., "[[:cntrl:]]", " "))) |>
+  mutate(across(starts_with("review_"), ~ na_if(., ""))) |> 
+  mutate(across(starts_with("review_"), #normalizes white space
+                ~ str_squish(.))) |>
+  mutate(across(starts_with("review_"), #everything to lowercase for consistency
+                tolower)) |>
+  mutate(across(starts_with("review_"), #add length descriptor for reviews
+                ~ str_count(., "\\w+"),
+                .names = "len_{.col}"))
+
+write_csv(d_clean, "data/glassdoor_reviews_clean.csv")
+  
+
 
 
 
