@@ -1,0 +1,144 @@
+---
+title: "Indeed Reviews: Descriptives"
+format: html
+---
+
+## Set up
+
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(lubridate)
+library(stringi)
+library(knitr)
+
+
+d <- read_csv("../data/indeed_reviews_clean.csv", locale = locale(encoding = "Latin1")) |>
+  select(-...1)
+```
+
+## Descriptives
+
+```{r}
+#| message: false
+#| warning: false
+d |>
+  ggplot(aes(x = year)) +
+  geom_bar(fill = "steelblue") +
+  labs(x = "", y = "",
+       title = "Number of reviews per year") +
+  theme(axis.text.x = element_text(angle = 45,
+                                   hjust = 1,
+                                   size = 9))
+```
+
+## Missingness
+
+### Job data
+
+```{r}
+#| message: false
+miss_d <- d |>
+  select(yr3_int, job_title, location) |>
+  mutate(across(c(job_title, location), ~is.na(.), .names = "miss_{.col}")) |>
+  pivot_longer(cols = starts_with("miss_"),
+               names_to = "var",
+               values_to = "missing") |>
+  mutate(var = sub('^miss_', "", var)) |>
+  group_by(yr3_int, var) |>
+  summarise(total = n(),
+            n_missing = sum(missing),
+            prop_missing = mean(missing))
+
+miss_d |> kable()
+
+miss_d |> 
+  ggplot(aes(x = yr3_int, y = prop_missing)) +
+  geom_col(fill = "steelblue") +
+  facet_wrap(~var) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8)) +
+  labs(x = "", y = "",
+       title = "Proportion of missing datapoints in key variables",
+       subtitle = "tbd")
+```
+
+### Date
+
+```{r}
+d |>
+  filter(is.na(date)) |>
+  tally() |>
+  knitr::kable()
+```
+
+### Reviews
+
+```{r}
+#| message: false
+vars <- c("main_review", "pros_review", "cons_review")
+miss_d <- d |>
+  select(yr3_int, main_review, pros_review, cons_review) |>
+  filter(!is.na(yr3_int))
+  mutate(across(all_of(vars), ~is.na(.), .names = "miss_{.col}")) |>
+  pivot_longer(cols = starts_with("miss_"),
+               names_to = "var",
+               values_to = "missing") |>
+  mutate(var = sub('^miss_', "", var)) |>
+  group_by(yr3_int, var) |>
+  summarise(total = n(),
+            n_missing = sum(missing),
+            prop_missing = mean(missing)) 
+  
+miss_d |> kable()
+  
+miss_d |>
+  ggplot(aes(x = yr3_int, y = prop_missing)) +
+  geom_col(fill = "steelblue") +
+  facet_wrap(~var) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8)) +
+  labs(x = "", y = "", title = "Proportion of missing reviews")
+```
+
+## Text lengths
+
+```{r}
+#| message: false
+#| warning: false
+bind_rows(d |> mutate(subset = "All reviews"),
+          d |> filter(len_main_review > 0 &
+                len_main_review < (mean(len_main_review) + 2*sd(len_main_review))) |>
+    mutate(subset = "Without outliers")) |>
+  ggplot(aes(x = len_main_review)) +
+  geom_histogram(fill="steelblue") +
+  facet_wrap(~subset, scales = "free")
+```
+
+
+```{r}
+len_d <- d |>
+  select(yr3_int,
+         len_main_review < (mean(len_main_review) + 2*sd(len_main_review))) |>
+  filter(!is.na(yr3_int), ) |>
+  pivot_longer(ends_with("_review"),
+               names_to = "review",
+               values_to = "length") |>
+  group_by(yr3_int) |>
+  summarise(avg_len = mean(length),
+            sd = sd(length),
+            min = min(length),
+            max = max(length),
+            n = n(),
+            .groups = "drop")
+
+len_d |> kable()
+
+len_d |> 
+  ggplot(aes(y=avg_len, x=yr3_int)) + 
+  geom_col(fill="steelblue") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8)) +
+  labs(x = "", y = "",
+       title = "Average review length in 3 year periods",
+       subtitle = "Ignoring ourliers")
+```
+
