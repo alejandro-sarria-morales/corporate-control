@@ -1,6 +1,6 @@
 ---
 title: "Indeed Reviews: Descriptives"
-format: html
+format: pdf
 ---
 
 ## Set up
@@ -79,7 +79,7 @@ d |>
 vars <- c("main_review", "pros_review", "cons_review")
 miss_d <- d |>
   select(yr3_int, main_review, pros_review, cons_review) |>
-  filter(!is.na(yr3_int))
+  filter(!is.na(yr3_int)) |> 
   mutate(across(all_of(vars), ~is.na(.), .names = "miss_{.col}")) |>
   pivot_longer(cols = starts_with("miss_"),
                names_to = "var",
@@ -117,17 +117,13 @@ bind_rows(d |> mutate(subset = "All reviews"),
 
 ```{r}
 len_d <- d |>
-  select(yr3_int,
+  filter(!is.na(yr3_int),
          len_main_review < (mean(len_main_review) + 2*sd(len_main_review))) |>
-  filter(!is.na(yr3_int), ) |>
-  pivot_longer(ends_with("_review"),
-               names_to = "review",
-               values_to = "length") |>
   group_by(yr3_int) |>
-  summarise(avg_len = mean(length),
-            sd = sd(length),
-            min = min(length),
-            max = max(length),
+  summarise(avg_len = mean(len_main_review),
+            sd = sd(len_main_review),
+            min = min(len_main_review),
+            max = max(len_main_review),
             n = n(),
             .groups = "drop")
 
