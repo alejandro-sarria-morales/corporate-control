@@ -14,16 +14,36 @@ Mentions of schedule include:
 Reply with exactly one character: 1 if the review mentions schedule, 0 if not.
 Do not add any explanation or punctuation."
 
-# Load data
-df <- read_csv("data/labelled_docs.csv", show_col_types = FALSE)
 
-# Classify
-df$llm_schedule <- NA_integer_
+#===============================
+# Evaluation on subset B
+#===============================
+subset_b <- read_csv("data/schedule_subset_b.csv", show_col_types = FALSE)
 
-for (i in seq_len(nrow(df))) {
+subset_b$llm_schedule <- NA_integer_
+
+for (i in seq_len(nrow(subset_b))) {
   chat <- chat_ollama(system_prompt = system_prompt,
                       model = "llama3.1:8b")
-  df$llm_schedule[i] <- as.integer(trimws(chat$chat(df$doc[i])))
+  subset_b$llm_schedule[i] <- as.integer(trimws(chat$chat(subset_b$doc[i])))
 }
 
-write_csv(df, "data/llm_classified.csv")
+# Compute metrics against hand labels
+pred <- subset_b$llm_schedule
+true <- subset_b$hand_label
+
+tp <- sum(pred == 1 & true == 1)
+fp <- sum(pred == 1 & true == 0)
+fn <- sum(pred == 0 & true == 1)
+tn <- sum(pred == 0 & true == 0)
+
+accuracy  <- (tp + tn) / length(true)
+recall    <- tp / (tp + fn)
+precision <- tp / (tp + fp)
+f1        <- 2 * precision * recall / (precision + recall)
+
+cat("\n--- Subset B Evaluation ---\n")
+cat(sprintf("Accuracy:  %.3f\n", accuracy))
+cat(sprintf("Recall:    %.3f\n", recall))
+cat(sprintf("Precision: %.3f\n", precision))
+cat(sprintf("F1:        %.3f\n", f1))
