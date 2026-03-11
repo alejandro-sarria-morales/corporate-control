@@ -1,5 +1,6 @@
 library(ellmer)
 library(tidyverse)
+library(progress)
 
 system_prompt <- "You are a research assistant classifying job reviews.
 Determine whether the review contains any mention of work schedule.
@@ -10,6 +11,10 @@ Mentions of schedule include:
   - Flexibility or rigidity of hours
   - Availability requirements (on-call, weekends, holidays)
   - Stability or predictability of working hours
+  
+Here is an example of a review talking about schedule: 'always be caution in working, high risk work'
+
+Here is an example of a review not talking about schedule: 'i have been working at alta resources for sunrun part-time for more than a year the brea office is a tight family, everyone became friends and free lunch on thursdays.'
 
 Reply with exactly one character: 1 if the review mentions schedule, 0 if not.
 Do not add any explanation or punctuation."
@@ -22,9 +27,16 @@ subset_b <- read_csv("data/schedule_subset_b.csv", show_col_types = FALSE)
 
 subset_b$llm_schedule <- NA_integer_
 
+pb <- progress_bar$new(
+  format = " Labelling reviews with Llama [:bar] :percent",
+  total=length(subset_b$llm_schedule),
+  clear = FALSE)
+
 for (i in seq_len(nrow(subset_b))) {
+  pb$tick()
   chat <- chat_ollama(system_prompt = system_prompt,
-                      model = "llama3.1:8b")
+                      model = "llama3.1:8b",
+                      echo='none')
   subset_b$llm_schedule[i] <- as.integer(trimws(chat$chat(subset_b$doc[i])))
 }
 
