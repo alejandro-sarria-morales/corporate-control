@@ -31,7 +31,14 @@ class SimpleDataset(Dataset):
 # Training data
 #===============
 print("Step 1: Loading data...")
-df = pd.read_csv("data/labelled_docs.csv")
+df = pd.read_csv("../data/hand_labelled_reviews.csv").dropna(subset=["doc", "hand_label"])
+
+# Add 400 schedule=0 reviews from labelled_docs to balance classes
+labelled = pd.read_csv("../data/labelled_docs.csv")
+neg_sample = labelled[labelled["schedule"] == 0].sample(400, random_state=123)[["doc"]]
+neg_sample["hand_label"] = 0
+df = pd.concat([df, neg_sample], ignore_index=True).dropna(subset=["doc"])
+
 train_df, test_df = train_test_split(df, test_size=0.2, random_state=123)
 print(f"  Train: {len(train_df)} | Test: {len(test_df)}")
 
@@ -41,8 +48,8 @@ print(f"  Train: {len(train_df)} | Test: {len(test_df)}")
 print("Step 2: Setting up tokenizer...")
 tokenizer = RobertaTokenizerFast.from_pretrained("roberta-base")
 
-train_loader = DataLoader(SimpleDataset(train_df["text"].tolist(), train_df["label"].tolist()), batch_size=16, shuffle=True)
-test_loader = DataLoader(SimpleDataset(test_df["text"].tolist(), test_df["label"].tolist()), batch_size=16)
+train_loader = DataLoader(SimpleDataset(train_df["doc"].tolist(), train_df["hand_label"].tolist()), batch_size=16, shuffle=True)
+test_loader = DataLoader(SimpleDataset(test_df["doc"].tolist(), test_df["hand_label"].tolist()), batch_size=16)
 
 #===============
 # Model
@@ -106,6 +113,6 @@ print(classification_report(all_labels, all_preds))
 # Save model
 #===============
 print("Step 6: Saving model...")
-model.save_pretrained("../models/roberta_corp_control")
-tokenizer.save_pretrained("../models/roberta_corp_control")
+model.save_pretrained("outputs/roberta_corp_control")
+tokenizer.save_pretrained("outputs/roberta_corp_control")
 print("Done!")
