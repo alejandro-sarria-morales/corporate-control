@@ -1,0 +1,75 @@
+🦥 Unsloth: Will patch your computer to enable 2x faster free finetuning.
+Unsloth: Your Flash Attention 2 installation seems to be broken. Using Xformers instead. No performance changes will be seen.
+🦥 Unsloth Zoo will now patch everything to make training faster!
+Preparing dataset...
+Train: 706, Val: 177
+Loading model...
+==((====))==  Unsloth 2026.3.18: Fast Qwen3_5 patching. Transformers: 5.3.0.
+   \\   /|    NVIDIA RTX 5000 Ada Generation. Num GPUs = 1. Max memory: 31.475 GB. Platform: Linux.
+O^O/ \_/ \    Torch: 2.11.0+cu130. CUDA: 8.9. CUDA Toolkit: 13.0. Triton: 3.6.0
+\        /    Bfloat16 = TRUE. FA [Xformers = 0.0.35. FA2 = False]
+ "-____-"     Free license: http://github.com/unslothai/unsloth
+Unsloth: Fast downloading is enabled - ignore downloading bars which are red colored!
+Unsloth: Making `model.base_model.model.model.language_model` require gradients
+Starting training...
+Unsloth: Will smartly offload gradients to save VRAM!
+{'loss': '18.53', 'grad_norm': '0.7972', 'learning_rate': '8e-05', 'epoch': '0.05666'}
+{'loss': '14.82', 'grad_norm': '0.8857', 'learning_rate': '0.00018', 'epoch': '0.1133'}
+{'loss': '6.222', 'grad_norm': '2.051', 'learning_rate': '0.0001969', 'epoch': '0.17'}
+{'loss': '1.853', 'grad_norm': '0.2342', 'learning_rate': '0.000193', 'epoch': '0.2266'}
+{'loss': '1.607', 'grad_norm': '0.1674', 'learning_rate': '0.0001891', 'epoch': '0.2833'}
+{'loss': '1.499', 'grad_norm': '0.1429', 'learning_rate': '0.0001852', 'epoch': '0.3399'}
+{'loss': '1.411', 'grad_norm': '0.1256', 'learning_rate': '0.0001813', 'epoch': '0.3966'}
+{'loss': '1.554', 'grad_norm': '0.1454', 'learning_rate': '0.0001774', 'epoch': '0.4533'}
+{'loss': '1.4', 'grad_norm': '0.1031', 'learning_rate': '0.0001735', 'epoch': '0.5099'}
+{'loss': '1.417', 'grad_norm': '0.09491', 'learning_rate': '0.0001696', 'epoch': '0.5666'}
+{'eval_loss': '0.1803', 'eval_runtime': '13.93', 'eval_samples_per_second': '12.7', 'eval_steps_per_second': '3.23', 'epoch': '0.5666'}
+{'loss': '1.471', 'grad_norm': '0.1074', 'learning_rate': '0.0001658', 'epoch': '0.6232'}
+{'loss': '1.269', 'grad_norm': '0.1011', 'learning_rate': '0.0001619', 'epoch': '0.6799'}
+{'loss': '1.478', 'grad_norm': '0.09529', 'learning_rate': '0.000158', 'epoch': '0.7365'}
+{'loss': '1.678', 'grad_norm': '0.1092', 'learning_rate': '0.0001541', 'epoch': '0.7932'}
+{'loss': '1.327', 'grad_norm': '0.08542', 'learning_rate': '0.0001502', 'epoch': '0.8499'}
+{'loss': '1.471', 'grad_norm': '0.1175', 'learning_rate': '0.0001463', 'epoch': '0.9065'}
+{'loss': '1.569', 'grad_norm': '0.1153', 'learning_rate': '0.0001424', 'epoch': '0.9632'}
+{'loss': '1.099', 'grad_norm': '0.07846', 'learning_rate': '0.0001385', 'epoch': '1.011'}
+{'loss': '1.344', 'grad_norm': '0.1138', 'learning_rate': '0.0001346', 'epoch': '1.068'}
+{'loss': '1.159', 'grad_norm': '0.09288', 'learning_rate': '0.0001307', 'epoch': '1.125'}
+{'eval_loss': '0.1742', 'eval_runtime': '13.77', 'eval_samples_per_second': '12.85', 'eval_steps_per_second': '3.267', 'epoch': '1.125'}
+{'loss': '1.335', 'grad_norm': '0.112', 'learning_rate': '0.0001268', 'epoch': '1.181'}
+{'loss': '1.735', 'grad_norm': '0.107', 'learning_rate': '0.000123', 'epoch': '1.238'}
+{'loss': '1.274', 'grad_norm': '0.1253', 'learning_rate': '0.0001191', 'epoch': '1.295'}
+{'loss': '1.461', 'grad_norm': '0.1123', 'learning_rate': '0.0001152', 'epoch': '1.351'}
+{'loss': '1.319', 'grad_norm': '0.1007', 'learning_rate': '0.0001113', 'epoch': '1.408'}
+{'loss': '1.397', 'grad_norm': '0.1139', 'learning_rate': '0.0001074', 'epoch': '1.465'}
+{'loss': '1.384', 'grad_norm': '0.1111', 'learning_rate': '0.0001035', 'epoch': '1.521'}
+{'loss': '1.402', 'grad_norm': '0.09774', 'learning_rate': '9.961e-05', 'epoch': '1.578'}
+{'loss': '1.403', 'grad_norm': '0.1122', 'learning_rate': '9.572e-05', 'epoch': '1.635'}
+{'loss': '1.458', 'grad_norm': '0.1412', 'learning_rate': '9.183e-05', 'epoch': '1.691'}
+{'eval_loss': '0.1738', 'eval_runtime': '13.82', 'eval_samples_per_second': '12.81', 'eval_steps_per_second': '3.257', 'epoch': '1.691'}
+{'loss': '1.208', 'grad_norm': '0.1263', 'learning_rate': '8.794e-05', 'epoch': '1.748'}
+{'loss': '1.216', 'grad_norm': '0.1046', 'learning_rate': '8.405e-05', 'epoch': '1.805'}
+{'loss': '1.08', 'grad_norm': '0.09964', 'learning_rate': '8.016e-05', 'epoch': '1.861'}
+{'loss': '1.232', 'grad_norm': '0.1205', 'learning_rate': '7.626e-05', 'epoch': '1.918'}
+{'loss': '1.318', 'grad_norm': '0.1138', 'learning_rate': '7.237e-05', 'epoch': '1.975'}
+{'loss': '1.139', 'grad_norm': '0.1005', 'learning_rate': '6.848e-05', 'epoch': '2.023'}
+{'loss': '1.291', 'grad_norm': '0.128', 'learning_rate': '6.459e-05', 'epoch': '2.079'}
+{'loss': '1.19', 'grad_norm': '0.1204', 'learning_rate': '6.07e-05', 'epoch': '2.136'}
+{'loss': '1.246', 'grad_norm': '0.1271', 'learning_rate': '5.681e-05', 'epoch': '2.193'}
+{'loss': '1.21', 'grad_norm': '0.1387', 'learning_rate': '5.292e-05', 'epoch': '2.249'}
+{'eval_loss': '0.175', 'eval_runtime': '13.78', 'eval_samples_per_second': '12.84', 'eval_steps_per_second': '3.265', 'epoch': '2.249'}
+{'loss': '1.243', 'grad_norm': '0.1211', 'learning_rate': '4.903e-05', 'epoch': '2.306'}
+{'loss': '1.177', 'grad_norm': '0.136', 'learning_rate': '4.514e-05', 'epoch': '2.363'}
+{'loss': '1.282', 'grad_norm': '0.1432', 'learning_rate': '4.125e-05', 'epoch': '2.419'}
+{'loss': '1.11', 'grad_norm': '0.1604', 'learning_rate': '3.735e-05', 'epoch': '2.476'}
+{'loss': '1.262', 'grad_norm': '0.1728', 'learning_rate': '3.346e-05', 'epoch': '2.533'}
+{'loss': '1.26', 'grad_norm': '0.1343', 'learning_rate': '2.957e-05', 'epoch': '2.589'}
+{'loss': '1.185', 'grad_norm': '0.1569', 'learning_rate': '2.568e-05', 'epoch': '2.646'}
+{'loss': '1.124', 'grad_norm': '0.1786', 'learning_rate': '2.179e-05', 'epoch': '2.703'}
+{'loss': '1.136', 'grad_norm': '0.1541', 'learning_rate': '1.79e-05', 'epoch': '2.759'}
+{'loss': '1.357', 'grad_norm': '0.1621', 'learning_rate': '1.401e-05', 'epoch': '2.816'}
+{'eval_loss': '0.1759', 'eval_runtime': '13.82', 'eval_samples_per_second': '12.81', 'eval_steps_per_second': '3.256', 'epoch': '2.816'}
+{'loss': '1.121', 'grad_norm': '0.1611', 'learning_rate': '1.012e-05', 'epoch': '2.873'}
+{'loss': '1.232', 'grad_norm': '0.1614', 'learning_rate': '6.226e-06', 'epoch': '2.929'}
+{'loss': '1.157', 'grad_norm': '0.135', 'learning_rate': '2.335e-06', 'epoch': '2.986'}
+{'train_runtime': '1473', 'train_samples_per_second': '1.438', 'train_steps_per_second': '0.181', 'train_loss': '1.992', 'epoch': '3'}
+LoRA adapter saved to models/final
