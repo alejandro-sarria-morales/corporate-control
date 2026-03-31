@@ -9,7 +9,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "1"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 from unsloth import FastModel
-from datasets import load_dataset
+from datasets import Dataset, load_dataset
 from trl import SFTTrainer, SFTConfig
 
 
@@ -18,8 +18,8 @@ from trl import SFTTrainer, SFTConfig
 #==========================
 
 MODEL_NAME = "Qwen/Qwen3.5:9B"
-MAX_SQE_LEN = 2048
-DATA_CSV = "../data/training_set.csv"
+MAX_SEQ_LEN = 2048
+DATA_CSV = "data/training_set.csv"
 OUTPUT_DIR = "~/dctrl_as1676/projects/corporate-control/models/checkpoints"
 FINAL_DIR = "~/dctrl_as1676/projects/corporate-control/models/final"
 
