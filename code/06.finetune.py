@@ -1,15 +1,14 @@
-import json
 import os
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
 os.environ["UNSLOTH_COMPILE_DISABLE"] = "1"
 os.environ["UNSLOTH_DISABLE_FAST_GENERATION"] = "1"
-os.environ["TOKENIZERS_PARALLELISM"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 from unsloth import FastModel
-from datasets import Dataset, load_dataset
+from datasets import Dataset
 from trl import SFTTrainer, SFTConfig
 
 
@@ -17,11 +16,11 @@ from trl import SFTTrainer, SFTConfig
 # config
 #==========================
 
-MODEL_NAME = "Qwen/Qwen3.5:9B"
+MODEL_NAME = "Qwen/Qwen3.5-9B"
 MAX_SEQ_LEN = 2048
 DATA_CSV = "data/training_set.csv"
-OUTPUT_DIR = "~/dctrl_as1676/projects/corporate-control/models/checkpoints"
-FINAL_DIR = "~/dctrl_as1676/projects/corporate-control/models/final"
+OUTPUT_DIR = "models/checkpoints"
+FINAL_DIR = "models/final"
 
 SYSTEM_PROMPT = (
     "You are a research assistant classifying job reviews.\n"
