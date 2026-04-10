@@ -1,0 +1,12 @@
+🦥 Unsloth: Will patch your computer to enable 2x faster free finetuning.
+Unsloth: Your Flash Attention 2 installation seems to be broken. Using Xformers instead. No performance changes will be seen.
+🦥 Unsloth Zoo will now patch everything to make training faster!
+Loading validation data...
+Validation examples: 177
+Loading model...
+==((====))==  Unsloth 2026.3.18: Fast Qwen3_5_MoE patching. Transformers: 5.3.0.
+   \\   /|    NVIDIA RTX 6000 Ada Generation. Num GPUs = 2. Max memory: 47.374 GB. Platform: Linux.
+O^O/ \_/ \    Torch: 2.11.0+cu130. CUDA: 8.9. CUDA Toolkit: 13.0. Triton: 3.6.0
+\        /    Bfloat16 = TRUE. FA [Xformers = 0.0.35. FA2 = False]
+ "-____-"     Free license: http://github.com/unslothai/unsloth
+Unsloth: Fast downloading is enabled - ignore downloading bars which are red colored!

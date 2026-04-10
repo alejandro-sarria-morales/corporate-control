@@ -1,15 +1,16 @@
 #!/bin/bash
 #SBATCH --job-name=qwen-ft-test
-#SBATCH --partition=gpu-common
+#SBATCH --partition=scavenger-gpu
 #SBATCH --account=dctrl-as1676
-#SBATCH --gres=gpu:5000_ada:1
+#SBATCH --gres=gpu:6000_ada_generation:2
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=64G
-#SBATCH --time=06:00:00
+#SBATCH --mem=128G
+#SBATCH --time=02:00:00
 #SBATCH --output=logs/finetune.out
 #SBATCH --error=logs/finetune.err
 #SBATCH --mail-user=as1676@duke.edu
-#SBATCH --mail-type=FAIL,END
+#SBATCH --mail-type=BEGIN,FAIL,END
+#SBATCH --requeue
 
 
 # Setup

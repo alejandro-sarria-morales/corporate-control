@@ -13,7 +13,7 @@ from unsloth import FastModel
 # ============================================================
 # Configuration
 # ============================================================
-MODEL_NAME  = "Qwen/Qwen3.5-9B"
+MODEL_NAME  = "Qwen/Qwen3.5-35B-A3B"
 ADAPTER_DIR = "models/final"
 DATA_CSV    = "data/training_set.csv"
 
@@ -51,12 +51,15 @@ print(f"Validation examples: {len(val_df)}")
 # ============================================================
 print("Loading model...")
 model, tokenizer = FastModel.from_pretrained(
-    model_name=MODEL_NAME,
+    model_name=ADAPTER_DIR,
     max_seq_length=2048,
+    load_in_4bit=False,
     load_in_16bit=True,
     full_finetuning=False,
+    device_map="balanced"
 )
-model.load_adapter(ADAPTER_DIR)
+
+#model = model.to("cuda")
 
 if hasattr(tokenizer, "tokenizer"):
     tokenizer = tokenizer.tokenizer
@@ -75,7 +78,7 @@ for i, (_, row) in enumerate(val_df.iterrows()):
 
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     with torch.no_grad():
-        output = model.generate(**inputs, max_new_tokens=10, temperature=0.0)
+        output = model.generate(**inputs, max_new_tokens=10, do_sample=False)
     pred = tokenizer.decode(output[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
 
     preds.append(pred)

@@ -16,7 +16,7 @@ from trl import SFTTrainer, SFTConfig
 # config
 #==========================
 
-MODEL_NAME = "Qwen/Qwen3.5-9B"
+MODEL_NAME = "Qwen/Qwen3.5-35B-A3B"
 MAX_SEQ_LEN = 2048
 DATA_CSV = "data/training_set.csv"
 OUTPUT_DIR = "models/checkpoints"
@@ -73,6 +73,7 @@ model, tokenizer = FastModel.from_pretrained(
     load_in_4bit=False,       # QLoRA not recommended for Qwen3.5
     load_in_16bit=True,       # bf16 LoRA
     full_finetuning=False,
+    device_map="balanced"
 )
 
 # If FastModel returns a processor (Qwen3.5 is a VLM), extract tokenizer
