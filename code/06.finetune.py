@@ -44,7 +44,7 @@ SYSTEM_PROMPT = (
 )
 
 # ============================================================
-# Step 1: Prepare dataset
+# Prepare dataset
 # ============================================================
 def format_example(doc, label):
     """Format a single example in Qwen3.5 chat template."""
@@ -54,7 +54,7 @@ def format_example(doc, label):
         f"<|im_start|>assistant\n{int(label)}<|im_end|>"
     )
 
-print("Preparing dataset...")
+print("Preparing dataset")
 df = pd.read_csv(DATA_CSV)
 train_df, val_df = train_test_split(df, test_size=0.2, random_state=123, stratify=df["label"])
 
@@ -64,9 +64,9 @@ val_dataset   = Dataset.from_dict({"text": [format_example(r["doc"], r["label"])
 print(f"Train: {len(train_dataset)}, Val: {len(val_dataset)}")
 
 # ============================================================
-# Step 2: Load model in bf16 with LoRA
+# Load model in bf16 with LoRA
 # ============================================================
-print("Loading model...")
+print("Loading model")
 model, tokenizer = FastModel.from_pretrained(
     model_name=MODEL_NAME,
     max_seq_length=MAX_SEQ_LEN,
@@ -76,14 +76,13 @@ model, tokenizer = FastModel.from_pretrained(
     device_map="balanced"
 )
 
-# If FastModel returns a processor (Qwen3.5 is a VLM), extract tokenizer
 if hasattr(tokenizer, "tokenizer"):
     tokenizer = tokenizer.tokenizer
 
 model = FastModel.get_peft_model(
     model,
     r=16,
-    lora_alpha=16,            # alpha == r per Unsloth recommendation
+    lora_alpha=16,          
     lora_dropout=0,
     bias="none",
     use_gradient_checkpointing="unsloth",
@@ -96,9 +95,9 @@ model = FastModel.get_peft_model(
 )
 
 # ============================================================
-# Step 3: Train
+# Train
 # ============================================================
-print("Starting training...")
+print("Starting training")
 trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
@@ -107,7 +106,7 @@ trainer = SFTTrainer(
     args=SFTConfig(
         max_seq_length=MAX_SEQ_LEN,
         per_device_train_batch_size=1,
-        gradient_accumulation_steps=8,    # Effective batch size = 8
+        gradient_accumulation_steps=8,  
         warmup_steps=10,
         num_train_epochs=3,
         learning_rate=2e-4,
@@ -121,8 +120,8 @@ trainer = SFTTrainer(
         save_total_limit=3,
         output_dir=OUTPUT_DIR,
         seed=3407,
-        dataloader_num_workers=0,         # Prevent fork deadlock
-        dataset_num_proc=1,               # Prevent fork deadlock
+        dataloader_num_workers=0,         
+        dataset_num_proc=1,           
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
     ),
@@ -132,7 +131,7 @@ trainer = SFTTrainer(
 trainer.train()
 
 # ============================================================
-# Step 4: Save final adapter
+# Save final adapter
 # ============================================================
 os.makedirs(FINAL_DIR, exist_ok=True)
 model.save_pretrained(FINAL_DIR)
