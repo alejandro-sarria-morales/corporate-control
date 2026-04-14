@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from datetime import datetime
 import shutil
+import optuna
 
 os.environ["UNSLOTH_COMPILE_DISABLE"] = "1"
 os.environ["UNSLOTH_DISABLE_FAST_GENERATION"] = "1"
@@ -22,11 +23,12 @@ from transformers import EarlyStoppingCallback
 MODEL_NAME  = "Qwen/Qwen3.5-9B"
 MAX_SEQ_LEN = 2048
 DATA_CSV    = "data/training_set.csv"
-RESULTS_DIR = "models/cv_results"
-FINAL_DIR   = "models/final"
+MODEL_SLUG  = MODEL_NAME.split("/")[-1]
+RESULTS_DIR = f"models/cv_results/{MODEL_SLUG}"
+FINAL_DIR   = f"models/finetuned/{MODEL_SLUG}"
 
-N_FOLDS     = 3
-LORA_RANKS  = [4, 8, 16]
+N_FOLDS     = 5
+N_TRIALS    = 20
 PATIENCE    = 3              # Early stopping: stop after 3 evals without improvement
 
 SYSTEM_PROMPT = (
@@ -38,14 +40,16 @@ SYSTEM_PROMPT = (
     "  - Flexibility or rigidity of hours\n"
     "  - Availability requirements (on-call, weekends, holidays)\n"
     "  - Stability or predictability of working hours\n\n"
-    "Here are two examples of a review talking about schedule:\n"
+    "Here are some examples of a review mentioning schedule:\n"
     "  1. 'long hours and a lot of work'\n"
-    "  2. 'they offer flexible hours and the staff is very nice.'\n\n"
-    "Here are three examples of a review not talking about schedule:\n"
+    "  2. 'they offer flexible hours and the staff is very nice.'\n"
+    "  3. 'not enough hours a week regardless if you are willing to work more.'\n\n"
+    "Here are some examples of a review not mentioning schedule:\n"
     "  1. 'i have been working at alta resources for sunrun part-time for more than a year "
     "the brea office is a tight family, everyone became friends and free lunch on thursdays.'\n"
     "  2. 'people are boring and the workplace conversations are limited. some people are not "
-    "very good at their jobs and they\\'re allowed to stay way too long.'\n\n"
+    "very good at their jobs and they\\'re allowed to stay way too long.'\n"
+    "  3. 'career movement, leadership not diversed enough'\n\n"
     "Reply with exactly one character: 1 if the review mentions schedule, 0 if not.\n"
     "Do not add any explanation or punctuation."
 )
@@ -60,11 +64,11 @@ def format_example(doc, label):
     )
 
 
-def train_fold(train_dataset, val_dataset, lora_rank, fold_idx, output_dir):
-    """Train a single fold with a given LoRA rank. Returns best eval_loss."""
+def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir):
+    """Train a single fold with a given config. Returns best eval_loss."""
 
     print(f"\n{'='*60}")
-    print(f"  Rank={lora_rank}, Fold={fold_idx+1}/{N_FOLDS}")
+    print(f"  Fold={fold_idx+1}/{N_FOLDS}  |  rank={config['lora_rank']}, alpha={config['lora_alpha']}, dropout={config['lora_dropout']}, lr={config['learning_rate']:.2e}")
     print(f"  Train: {len(train_dataset)}, Val: {len(val_dataset)}")
     print(f"{'='*60}\n")
 
@@ -83,9 +87,9 @@ def train_fold(train_dataset, val_dataset, lora_rank, fold_idx, output_dir):
 
     model = FastModel.get_peft_model(
         model,
-        r=lora_rank,
-        lora_alpha=lora_rank,       # alpha == r per Unsloth recommendation
-        lora_dropout=0,
+        r=config["lora_rank"],
+        lora_alpha=config["lora_alpha"],
+        lora_dropout=config["lora_dropout"],
         bias="none",
         use_gradient_checkpointing="unsloth",
         random_state=123,
@@ -106,13 +110,13 @@ def train_fold(train_dataset, val_dataset, lora_rank, fold_idx, output_dir):
             per_device_train_batch_size=1,
             gradient_accumulation_steps=8,
             warmup_steps=10,
-            num_train_epochs=10,          # High ceiling — early stopping will cut it short
-            learning_rate=2e-4,
+            num_train_epochs=5,
+            learning_rate=config["learning_rate"],
             optim="adamw_8bit",
             bf16=True,
             logging_steps=5,
             eval_strategy="steps",
-            eval_steps=25,                # Eval more frequently for early stopping
+            eval_steps=25,
             save_strategy="steps",
             save_steps=25,
             save_total_limit=2,
@@ -137,8 +141,7 @@ def train_fold(train_dataset, val_dataset, lora_rank, fold_idx, output_dir):
     ]
     best_eval_loss = min(eval_results) if eval_results else float("inf")
 
-    print(f"\n  Best eval_loss for rank={lora_rank}, fold={fold_idx+1}: {best_eval_loss:.4f}")
-    print(f"  Stopped at epoch: {trainer.state.epoch:.2f}")
+    print(f"\n  Best eval_loss: {best_eval_loss:.4f}  |  stopped at epoch: {trainer.state.epoch:.2f}")
 
     # Save this fold's adapter
     fold_adapter_dir = os.path.join(output_dir, "best_adapter")
@@ -157,80 +160,86 @@ def train_fold(train_dataset, val_dataset, lora_rank, fold_idx, output_dir):
 
 
 # ============================================================
-# Main: Grid Search with K-Fold CV
+# Main: Optuna Hyperparameter Search with K-Fold CV
 # ============================================================
 print("Loading data...")
 df = pd.read_csv(DATA_CSV)
-print(f"Total examples: {len(df)}")
+train_df_full = df[df["set"] == 1].reset_index(drop=True)
+print(f"Total examples: {len(df)}  |  training set: {len(train_df_full)}")
 
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=123)
-all_results = []
 
-for lora_rank in LORA_RANKS:
+
+def objective(trial):
+    rank = trial.suggest_categorical("r", [4, 8, 16, 32])
+    dropout = trial.suggest_categorical("dropout", [0.0, 0.05, 0.1])
+    lr = trial.suggest_float("lr", 1e-4, 3e-4, log=True)
+    alpha_mode = trial.suggest_categorical("alpha_mode", ["equal_r", "double_r"])
+    alpha = rank if alpha_mode == "equal_r" else 2 * rank
+
+    config = {
+        "lora_rank": rank,
+        "lora_alpha": alpha,
+        "lora_dropout": dropout,
+        "learning_rate": lr,
+    }
+
+    print(f"\n{'*'*60}")
+    print(f"  Trial {trial.number}  |  r={rank}, alpha={alpha}, dropout={dropout}, lr={lr:.2e}")
+    print(f"{'*'*60}")
+
     fold_losses = []
-
-    for fold_idx, (train_idx, val_idx) in enumerate(skf.split(df, df["label"])):
-        train_df = df.iloc[train_idx]
-        val_df = df.iloc[val_idx]
+    for fold_idx, (train_idx, val_idx) in enumerate(skf.split(train_df_full, train_df_full["label"])):
+        train_df = train_df_full.iloc[train_idx]
+        val_df = train_df_full.iloc[val_idx]
 
         train_dataset = Dataset.from_dict({
-            "text": [format_example(r["doc"], r["label"]) for _, r in train_df.iterrows()]
+            "text": [format_example(row["doc"], row["label"]) for _, row in train_df.iterrows()]
         })
         val_dataset = Dataset.from_dict({
-            "text": [format_example(r["doc"], r["label"]) for _, r in val_df.iterrows()]
+            "text": [format_example(row["doc"], row["label"]) for _, row in val_df.iterrows()]
         })
 
-        fold_output_dir = os.path.join(RESULTS_DIR, f"rank_{lora_rank}", f"fold_{fold_idx}")
+        fold_output_dir = os.path.join(RESULTS_DIR, f"trial_{trial.number}", f"fold_{fold_idx}")
 
         best_loss = train_fold(
             train_dataset=train_dataset,
             val_dataset=val_dataset,
-            lora_rank=lora_rank,
+            config=config,
             fold_idx=fold_idx,
             output_dir=fold_output_dir,
         )
         fold_losses.append(best_loss)
 
-    mean_loss = np.mean(fold_losses)
-    std_loss = np.std(fold_losses)
+    trial.set_user_attr("fold_losses", fold_losses)
 
-    result = {
-        "lora_rank": lora_rank,
-        "fold_losses": fold_losses,
-        "mean_eval_loss": mean_loss,
-        "std_eval_loss": std_loss,
-    }
-    all_results.append(result)
+    mean_loss = float(np.mean(fold_losses))
+    print(f"\n  Trial {trial.number} done  |  mean_eval_loss={mean_loss:.4f}  |  folds: {[f'{l:.4f}' for l in fold_losses]}")
+    return mean_loss
 
-    print(f"\n{'*'*60}")
-    print(f"  Rank={lora_rank}: mean_eval_loss={mean_loss:.4f} +/- {std_loss:.4f}")
-    print(f"  Per-fold losses: {[f'{l:.4f}' for l in fold_losses]}")
-    print(f"{'*'*60}\n")
+
+study = optuna.create_study(direction="minimize")
+study.optimize(objective, n_trials=N_TRIALS)
 
 # ============================================================
 # Find best config and save its adapter
 # ============================================================
 print("\n" + "=" * 60)
-print("GRID SEARCH RESULTS SUMMARY")
+print("OPTUNA SEARCH RESULTS SUMMARY")
 print("=" * 60)
 
-for r in all_results:
-    print(f"  rank={r['lora_rank']:>3d}  |  eval_loss = {r['mean_eval_loss']:.4f} +/- {r['std_eval_loss']:.4f}  |  folds: {[f'{l:.4f}' for l in r['fold_losses']]}")
+for t in sorted(study.trials, key=lambda x: x.value):
+    print(f"  trial={t.number}  |  eval_loss={t.value:.4f}  |  params={t.params}")
 
-best_result = min(all_results, key=lambda x: x["mean_eval_loss"])
-best_rank = best_result["lora_rank"]
+best_trial = study.best_trial
+best_fold_losses = best_trial.user_attrs["fold_losses"]
+best_fold_idx = int(np.argmin(best_fold_losses))
+best_adapter_path = os.path.join(RESULTS_DIR, f"trial_{best_trial.number}", f"fold_{best_fold_idx}", "best_adapter")
 
-print(f"\nBest config: rank={best_rank} (mean_eval_loss={best_result['mean_eval_loss']:.4f})")
-
-# Find best fold for the best rank
-best_fold_idx = np.argmin(best_result["fold_losses"])
-best_adapter_path = os.path.join(RESULTS_DIR, f"rank_{best_rank}", f"fold_{best_fold_idx}", "best_adapter")
-
-# Copy best adapter to final directory
-print(f"Saving best adapter (rank={best_rank}, fold={best_fold_idx+1}) to {FINAL_DIR}")
-os.makedirs(FINAL_DIR, exist_ok=True)
+print(f"\nBest config: trial={best_trial.number}, params={best_trial.params} (mean_eval_loss={best_trial.value:.4f})")
+print(f"Saving best adapter (trial={best_trial.number}, fold={best_fold_idx+1}) to {FINAL_DIR}")
 
 if os.path.exists(FINAL_DIR):
     shutil.rmtree(FINAL_DIR)
@@ -241,12 +250,21 @@ results_log = {
     "timestamp": datetime.now().isoformat(),
     "model": MODEL_NAME,
     "n_folds": N_FOLDS,
-    "lora_ranks_tested": LORA_RANKS,
+    "n_trials": N_TRIALS,
     "patience": PATIENCE,
-    "results": all_results,
-    "best_rank": best_rank,
-    "best_fold": int(best_fold_idx),
-    "best_mean_eval_loss": best_result["mean_eval_loss"],
+    "best_trial": best_trial.number,
+    "best_params": best_trial.params,
+    "best_mean_eval_loss": best_trial.value,
+    "best_fold": best_fold_idx,
+    "all_trials": [
+        {
+            "trial": t.number,
+            "params": t.params,
+            "mean_eval_loss": t.value,
+            "fold_losses": t.user_attrs.get("fold_losses", []),
+        }
+        for t in study.trials
+    ],
 }
 with open(os.path.join(RESULTS_DIR, "cv_results.json"), "w") as f:
     json.dump(results_log, f, indent=2, default=str)

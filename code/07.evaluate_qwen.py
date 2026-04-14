@@ -1,7 +1,6 @@
 import os
 import torch
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
 os.environ["UNSLOTH_COMPILE_DISABLE"] = "1"
@@ -14,7 +13,7 @@ from unsloth import FastModel
 # Configuration
 # ============================================================
 MODEL_NAME  = "Qwen/Qwen3.5-35B-A3B"
-ADAPTER_DIR = "models/final"
+ADAPTER_DIR = f"models/finetuned/{MODEL_NAME.split('/')[-1]}"
 DATA_CSV    = "data/training_set.csv"
 
 SYSTEM_PROMPT = (
@@ -26,25 +25,27 @@ SYSTEM_PROMPT = (
     "  - Flexibility or rigidity of hours\n"
     "  - Availability requirements (on-call, weekends, holidays)\n"
     "  - Stability or predictability of working hours\n\n"
-    "Here are two examples of a review talking about schedule:\n"
+    "Here are some examples of a review mentioning schedule:\n"
     "  1. 'long hours and a lot of work'\n"
-    "  2. 'they offer flexible hours and the staff is very nice.'\n\n"
-    "Here are three examples of a review not talking about schedule:\n"
+    "  2. 'they offer flexible hours and the staff is very nice.'\n"
+    "  3. 'not enough hours a week regardless if you are willing to work more.'\n\n"
+    "Here are some examples of a review not mentioning schedule:\n"
     "  1. 'i have been working at alta resources for sunrun part-time for more than a year "
     "the brea office is a tight family, everyone became friends and free lunch on thursdays.'\n"
     "  2. 'people are boring and the workplace conversations are limited. some people are not "
-    "very good at their jobs and they\\'re allowed to stay way too long.'\n\n"
+    "very good at their jobs and they\\'re allowed to stay way too long.'\n"
+    "  3. 'career movement, leadership not diversed enough'\n\n"
     "Reply with exactly one character: 1 if the review mentions schedule, 0 if not.\n"
     "Do not add any explanation or punctuation."
 )
 
 # ============================================================
-# Recreate the same val split
+# Load held-out evaluation set
 # ============================================================
-print("Loading validation data...")
+print("Loading evaluation data...")
 df = pd.read_csv(DATA_CSV)
-_, val_df = train_test_split(df, test_size=0.2, random_state=123, stratify=df["label"])
-print(f"Validation examples: {len(val_df)}")
+val_df = df[df["set"] == 0].reset_index(drop=True)
+print(f"Evaluation examples: {len(val_df)}")
 
 # ============================================================
 # Load model + adapter
