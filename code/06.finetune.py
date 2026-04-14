@@ -19,7 +19,7 @@ from transformers import EarlyStoppingCallback
 # ============================================================
 # Configuration
 # ============================================================
-MODEL_NAME  = "Qwen/Qwen3.5-35B-A3B"
+MODEL_NAME  = "Qwen/Qwen3.5-9B"
 MAX_SEQ_LEN = 2048
 DATA_CSV    = "data/training_set.csv"
 RESULTS_DIR = "models/cv_results"
@@ -75,7 +75,7 @@ def train_fold(train_dataset, val_dataset, lora_rank, fold_idx, output_dir):
         load_in_4bit=False,
         load_in_16bit=True,
         full_finetuning=False,
-        device_map="balanced",
+        #device_map="balanced",
     )
 
     if hasattr(tokenizer, "tokenizer"):
