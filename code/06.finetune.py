@@ -1,11 +1,13 @@
 import os
 import json
+import gc
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from datetime import datetime
 import shutil
 import optuna
+import torch
 
 os.environ["UNSLOTH_COMPILE_DISABLE"] = "1"
 os.environ["UNSLOTH_DISABLE_FAST_GENERATION"] = "1"
@@ -72,6 +74,11 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir):
     print(f"  Train: {len(train_dataset)}, Val: {len(val_dataset)}")
     print(f"{'='*60}\n")
 
+    # Ensure previous trial/fold GPU memory is fully released before loading
+    gc.collect()
+    torch.cuda.empty_cache()
+    torch.cuda.synchronize()
+
     # Load fresh model each run
     model, tokenizer = FastModel.from_pretrained(
         model_name=MODEL_NAME,
@@ -117,6 +124,7 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir):
             logging_steps=5,
             eval_strategy="steps",
             eval_steps=25,
+            eval_accumulation_steps=1,
             save_strategy="steps",
             save_steps=25,
             save_total_limit=2,
