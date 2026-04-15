@@ -159,9 +159,7 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir):
 
     # Clean up GPU memory
     del model, tokenizer, trainer
-    import torch
     torch.cuda.empty_cache()
-    import gc
     gc.collect()
 
     return best_eval_loss
@@ -271,7 +269,7 @@ results_log = {
             "mean_eval_loss": t.value,
             "fold_losses": t.user_attrs.get("fold_losses", []),
         }
-        for t in study.trials
+	        for t in study.trials
     ],
 }
 with open(os.path.join(RESULTS_DIR, "cv_results.json"), "w") as f:
