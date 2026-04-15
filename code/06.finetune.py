@@ -219,8 +219,16 @@ def objective(trial):
         )
         fold_losses.append(best_loss)
 
-    trial.set_user_attr("fold_losses", fold_losses)
+    # Clean up: keep only the best fold's adapter, delete the rest
+    best_fold_idx = int(np.argmin(fold_losses))
+    for fold_idx in range(N_FOLDS):
+        if fold_idx != best_fold_idx:
+            fold_dir = os.path.join(RESULTS_DIR, f"trial_{trial.number}", f"fold_{fold_idx}")
+            if os.path.exists(fold_dir):
+                shutil.rmtree(fold_dir)
 
+    trial.set_user_attr("fold_losses", fold_losses)
+    trial.set_user_attr("best_fold_idx", best_fold_idx)
     mean_loss = float(np.mean(fold_losses))
     print(f"\n  Trial {trial.number} done  |  mean_eval_loss={mean_loss:.4f}  |  folds: {[f'{l:.4f}' for l in fold_losses]}")
     return mean_loss
