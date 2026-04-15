@@ -181,7 +181,7 @@ skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=123)
 
 
 def objective(trial):
-    rank = trial.suggest_categorical("r", [4, 8, 16, 32])
+    rank = trial.suggest_categorical("r", [4, 8, 16])
     dropout = trial.suggest_categorical("dropout", [0.0, 0.05, 0.1])
     lr = trial.suggest_float("lr", 1e-4, 3e-4, log=True)
     alpha_mode = trial.suggest_categorical("alpha_mode", ["equal_r", "double_r"])
