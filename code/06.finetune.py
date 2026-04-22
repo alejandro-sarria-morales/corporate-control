@@ -134,6 +134,7 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir):
             dataset_num_proc=1,
             load_best_model_at_end=True,
             metric_for_best_model="eval_loss",
+	    prediction_loss_only=True
         ),
         dataset_text_field="text",
         callbacks=[EarlyStoppingCallback(early_stopping_patience=PATIENCE)],
