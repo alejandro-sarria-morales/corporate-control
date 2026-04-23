@@ -183,8 +183,7 @@ def objective(trial):
     rank = trial.suggest_categorical("r", [4, 8, 16])
     dropout = trial.suggest_categorical("dropout", [0.0, 0.05, 0.1])
     lr = trial.suggest_float("lr", 1e-4, 3e-4, log=True)
-    alpha_mode = trial.suggest_categorical("alpha_mode", ["equal_r", "double_r"])
-    alpha = rank if alpha_mode == "equal_r" else 2 * rank
+    alpha = rank
 
     config = {
         "lora_rank": rank,
@@ -236,7 +235,7 @@ def objective(trial):
 
 
 study = optuna.create_study(direction="minimize")
-study.optimize(objective, n_trials=N_TRIALS)
+study.optimize(objective, n_trials=N_TRIALS, catch=(torch.cuda.OutOfMemoryError,))
 
 # ============================================================
 # Find best config and save its adapter
