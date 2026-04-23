@@ -23,7 +23,7 @@ from transformers import EarlyStoppingCallback
 # Configuration
 # ============================================================
 MODEL_NAME  = "Qwen/Qwen3.5-9B"
-MAX_SEQ_LEN = 2048
+MAX_SEQ_LEN = 512
 DATA_CSV    = "data/training_set.csv"
 MODEL_SLUG  = MODEL_NAME.split("/")[-1]
 RESULTS_DIR = f"models/cv_results/{MODEL_SLUG}"
@@ -86,7 +86,7 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir):
         load_in_4bit=False,
         load_in_16bit=True,
         full_finetuning=False,
-        #device_map="balanced",
+        device_map="balanced",
     )
 
     if hasattr(tokenizer, "tokenizer"):
@@ -235,7 +235,7 @@ def objective(trial):
 
 
 study = optuna.create_study(direction="minimize")
-study.optimize(objective, n_trials=N_TRIALS, catch=(torch.cuda.OutOfMemoryError,))
+study.optimize(objective, n_trials=N_TRIALS, catch=(torch.cuda.OutOfMemoryError, NotImplementedError, RuntimeError))
 
 # ============================================================
 # Find best config and save its adapter
