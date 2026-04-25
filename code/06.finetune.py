@@ -248,7 +248,7 @@ print("\n" + "=" * 60)
 print("OPTUNA SEARCH RESULTS SUMMARY")
 print("=" * 60)
 
-for t in sorted([t for t in study.trials in t.value is not None], ley=lambda x: x.value):
+for t in sorted([t for t in study.trials if t.value is not None], key=lambda x: x.value):
     print(f"  trial={t.number}  |  eval_loss={t.value:.4f}  |  params={t.params}")
 
 best_trial = study.best_trial
