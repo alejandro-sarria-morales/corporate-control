@@ -78,6 +78,10 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir):
     gc.collect()
     torch.cuda.empty_cache()
     torch.cuda.synchronize()
+    
+    cache_dir = os.path.join(os.getcwd(), "unsloth_compiled_cache")
+    if os.path.exists(cache_dir):
+	shutil.rmtree(cache_dir)
 
     # Load fresh model each run
     model, tokenizer = FastModel.from_pretrained(
@@ -244,7 +248,7 @@ print("\n" + "=" * 60)
 print("OPTUNA SEARCH RESULTS SUMMARY")
 print("=" * 60)
 
-for t in sorted(study.trials, key=lambda x: x.value):
+for t in sorted([t for t in study.trials in t.value is not None], ley=lambda x: x.value):
     print(f"  trial={t.number}  |  eval_loss={t.value:.4f}  |  params={t.params}")
 
 best_trial = study.best_trial
