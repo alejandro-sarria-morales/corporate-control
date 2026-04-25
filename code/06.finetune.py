@@ -81,7 +81,7 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir):
     
     cache_dir = os.path.join(os.getcwd(), "unsloth_compiled_cache")
     if os.path.exists(cache_dir):
-	shutil.rmtree(cache_dir)
+        shutil.rmtree(cache_dir)
 
     # Load fresh model each run
     model, tokenizer = FastModel.from_pretrained(
