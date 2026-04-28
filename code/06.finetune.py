@@ -158,7 +158,7 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir, val_df)
             eval_steps=50,
             eval_accumulation_steps=2,
             save_strategy="steps",
-            save_steps=25,
+            save_steps=100,
             save_total_limit=2,
             output_dir=output_dir,
             seed=3407,
@@ -206,10 +206,11 @@ skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=123)
 
 
 def objective(trial):
-    rank = trial.suggest_categorical("r", [4, 8, 16])
+    rank = trial.suggest_categorical("r", [4, 8, 16, 32])
     dropout = trial.suggest_categorical("dropout", [0.05, 0.1])
-    lr = trial.suggest_float("lr", 1e-4, 3e-4, log=True)
-    alpha = rank
+    lr = trial.suggest_float("lr", 5e-5, 3e-4, log=True)
+    alpha_mode = trial.suggest_categorical("alpha_mode", ["r", "2r"])
+    alpha = rank if alpha_mode == "r" else 2 * rank
 
     config = {
         "lora_rank": rank,
