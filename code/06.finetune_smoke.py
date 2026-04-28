@@ -1,3 +1,15 @@
+"""
+Minimal HPC smoke test for 06.finetune.py.
+
+Runs 1 Optuna trial × 2 folds × 1 epoch on 40 training examples.
+Takes ~5-10 minutes on the cluster. Use this to verify that:
+  - val_f1 is printed after each fold
+  - cv_results.json contains fold_f1s and best_mean_val_f1
+  - Optuna study direction is maximize
+
+Submit as a short interactive or batch job before launching the full run.
+"""
+
 import os
 import json
 import gc
@@ -21,18 +33,21 @@ from trl import SFTTrainer, SFTConfig
 from transformers import EarlyStoppingCallback
 
 # ============================================================
-# Configuration
+# Configuration — same as 06.finetune.py
 # ============================================================
 MODEL_NAME  = "Qwen/Qwen3.5-9B"
 MAX_SEQ_LEN = 512
 DATA_CSV    = "data/training_set.csv"
 MODEL_SLUG  = MODEL_NAME.split("/")[-1]
-RESULTS_DIR = f"models/cv_results/{MODEL_SLUG}"
-FINAL_DIR   = f"models/finetuned/{MODEL_SLUG}"
+RESULTS_DIR = f"models/cv_results/{MODEL_SLUG}_smoke"
+FINAL_DIR   = f"models/finetuned/{MODEL_SLUG}_smoke"
 
-N_FOLDS     = 5
-N_TRIALS    = 20
-PATIENCE    = 3              # Early stopping: stop after 3 evals without improvement
+# ── Smoke overrides ──────────────────────────────────────────
+N_FOLDS   = 2
+N_TRIALS  = 1
+PATIENCE  = 1
+N_SMOKE_EXAMPLES = 40
+# ─────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = (
     "You are a research assistant classifying job reviews.\n"
@@ -59,7 +74,6 @@ SYSTEM_PROMPT = (
 
 
 def format_example(doc, label):
-    """Format a single example in Qwen3.5 chat template."""
     return (
         f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
         f"<|im_start|>user\n{doc}<|im_end|>\n"
@@ -68,7 +82,6 @@ def format_example(doc, label):
 
 
 def format_prompt(doc):
-    """Format an inference prompt without the assistant answer."""
     return (
         f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
         f"<|im_start|>user\n{doc}<|im_end|>\n"
@@ -77,7 +90,6 @@ def format_prompt(doc):
 
 
 def compute_fold_f1(model, tokenizer, val_df):
-    """Run greedy inference on val_df and return binary F1 (positive class=1)."""
     model.eval()
     preds = []
     for _, row in val_df.iterrows():
@@ -95,23 +107,19 @@ def compute_fold_f1(model, tokenizer, val_df):
 
 
 def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir, val_df):
-    """Train a single fold with a given config. Returns val F1 on the best checkpoint."""
-
     print(f"\n{'='*60}")
     print(f"  Fold={fold_idx+1}/{N_FOLDS}  |  rank={config['lora_rank']}, alpha={config['lora_alpha']}, dropout={config['lora_dropout']}, lr={config['learning_rate']:.2e}")
     print(f"  Train: {len(train_dataset)}, Val: {len(val_dataset)}")
     print(f"{'='*60}\n")
 
-    # Ensure previous trial/fold GPU memory is fully released before loading
     gc.collect()
     torch.cuda.empty_cache()
     torch.cuda.synchronize()
-    
+
     cache_dir = os.path.join(os.getcwd(), "unsloth_compiled_cache")
     if os.path.exists(cache_dir):
         shutil.rmtree(cache_dir)
 
-    # Load fresh model each run
     model, tokenizer = FastModel.from_pretrained(
         model_name=MODEL_NAME,
         max_seq_length=MAX_SEQ_LEN,
@@ -148,17 +156,17 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir, val_df)
             max_seq_length=MAX_SEQ_LEN,
             per_device_train_batch_size=1,
             gradient_accumulation_steps=8,
-            warmup_steps=10,
-            num_train_epochs=5,
+            warmup_steps=5,
+            num_train_epochs=1,          # smoke: 1 epoch only
             learning_rate=config["learning_rate"],
             optim="adamw_8bit",
             bf16=True,
             logging_steps=5,
             eval_strategy="steps",
-            eval_steps=50,
+            eval_steps=10,               # smoke: eval frequently
             eval_accumulation_steps=2,
             save_strategy="steps",
-            save_steps=25,
+            save_steps=10,               # smoke: save frequently
             save_total_limit=2,
             output_dir=output_dir,
             seed=3407,
@@ -166,7 +174,7 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir, val_df)
             dataset_num_proc=1,
             load_best_model_at_end=True,
             metric_for_best_model="eval_loss",
-	    prediction_loss_only=True
+            prediction_loss_only=True,
         ),
         dataset_text_field="text",
         callbacks=[EarlyStoppingCallback(early_stopping_patience=PATIENCE)],
@@ -174,17 +182,14 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir, val_df)
 
     trainer.train()
 
-    # Compute F1 on the val fold using the best-loss checkpoint (loaded automatically)
     val_f1 = compute_fold_f1(model, tokenizer, val_df)
     print(f"\n  Val F1: {val_f1:.4f}  |  stopped at epoch: {trainer.state.epoch:.2f}")
 
-    # Save this fold's adapter
     fold_adapter_dir = os.path.join(output_dir, "best_adapter")
     os.makedirs(fold_adapter_dir, exist_ok=True)
     model.save_pretrained(fold_adapter_dir)
     tokenizer.save_pretrained(fold_adapter_dir)
 
-    # Clean up GPU memory
     del model, tokenizer, trainer
     torch.cuda.empty_cache()
     gc.collect()
@@ -193,12 +198,16 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir, val_df)
 
 
 # ============================================================
-# Main: Optuna Hyperparameter Search with K-Fold CV
+# Main
 # ============================================================
 print("Loading data...")
 df = pd.read_csv(DATA_CSV)
-train_df_full = df[df["set"] == 1].reset_index(drop=True)
-print(f"Total examples: {len(df)}  |  training set: {len(train_df_full)}")
+train_df_full = (
+    df[df["set"] == 1]
+    .reset_index(drop=True)
+    .head(N_SMOKE_EXAMPLES)   # smoke: tiny subset
+)
+print(f"Smoke subset: {len(train_df_full)} examples  (label distribution: {train_df_full['label'].value_counts().to_dict()})")
 
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -206,10 +215,10 @@ skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=123)
 
 
 def objective(trial):
-    rank = trial.suggest_categorical("r", [4, 8, 16])
+    rank    = trial.suggest_categorical("r", [4, 8, 16])
     dropout = trial.suggest_categorical("dropout", [0.05, 0.1])
-    lr = trial.suggest_float("lr", 1e-4, 3e-4, log=True)
-    alpha = rank
+    lr      = trial.suggest_float("lr", 1e-4, 3e-4, log=True)
+    alpha   = rank
 
     config = {
         "lora_rank": rank,
@@ -225,7 +234,7 @@ def objective(trial):
     fold_f1s = []
     for fold_idx, (train_idx, val_idx) in enumerate(skf.split(train_df_full, train_df_full["label"])):
         train_df = train_df_full.iloc[train_idx]
-        val_df = train_df_full.iloc[val_idx]
+        val_df   = train_df_full.iloc[val_idx]
 
         train_dataset = Dataset.from_dict({
             "text": [format_example(row["doc"], row["label"]) for _, row in train_df.iterrows()]
@@ -246,7 +255,6 @@ def objective(trial):
         )
         fold_f1s.append(f1)
 
-    # Clean up: keep only the best fold's adapter, delete the rest
     best_fold_idx = int(np.argmax(fold_f1s))
     for fold_idx in range(N_FOLDS):
         if fold_idx != best_fold_idx:
@@ -264,35 +272,31 @@ def objective(trial):
 study = optuna.create_study(direction="maximize")
 study.optimize(objective, n_trials=N_TRIALS, catch=(torch.cuda.OutOfMemoryError, NotImplementedError, RuntimeError))
 
-# ============================================================
-# Find best config and save its adapter
-# ============================================================
 print("\n" + "=" * 60)
-print("OPTUNA SEARCH RESULTS SUMMARY")
+print("SMOKE TEST RESULTS")
 print("=" * 60)
 
 for t in sorted([t for t in study.trials if t.value is not None], key=lambda x: x.value, reverse=True):
     print(f"  trial={t.number}  |  mean_val_f1={t.value:.4f}  |  params={t.params}")
 
-best_trial = study.best_trial
+best_trial    = study.best_trial
 best_fold_f1s = best_trial.user_attrs["fold_f1s"]
 best_fold_idx = int(np.argmax(best_fold_f1s))
 best_adapter_path = os.path.join(RESULTS_DIR, f"trial_{best_trial.number}", f"fold_{best_fold_idx}", "best_adapter")
 
 print(f"\nBest config: trial={best_trial.number}, params={best_trial.params} (mean_val_f1={best_trial.value:.4f})")
-print(f"Saving best adapter (trial={best_trial.number}, fold={best_fold_idx+1}) to {FINAL_DIR}")
 
 if os.path.exists(FINAL_DIR):
     shutil.rmtree(FINAL_DIR)
 shutil.copytree(best_adapter_path, FINAL_DIR)
 
-# Save full results log
 results_log = {
     "timestamp": datetime.now().isoformat(),
+    "smoke_test": True,
     "model": MODEL_NAME,
     "n_folds": N_FOLDS,
     "n_trials": N_TRIALS,
-    "patience": PATIENCE,
+    "n_smoke_examples": N_SMOKE_EXAMPLES,
     "best_trial": best_trial.number,
     "best_params": best_trial.params,
     "best_mean_val_f1": best_trial.value,
@@ -304,12 +308,12 @@ results_log = {
             "mean_val_f1": t.value,
             "fold_f1s": t.user_attrs.get("fold_f1s", []),
         }
-	        for t in study.trials
+        for t in study.trials
     ],
 }
 with open(os.path.join(RESULTS_DIR, "cv_results.json"), "w") as f:
     json.dump(results_log, f, indent=2, default=str)
 
-print(f"\nFull results saved to {RESULTS_DIR}/cv_results.json")
-print(f"Best adapter saved to {FINAL_DIR}")
-print("Done!")
+print(f"\nSmoke results saved to {RESULTS_DIR}/cv_results.json")
+print(f"Smoke adapter saved to {FINAL_DIR}")
+print("\nSmoke test complete. If val_f1 appears above and cv_results.json looks correct, the full run is ready.")
