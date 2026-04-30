@@ -91,6 +91,7 @@ def compute_fold_f1(model, tokenizer, val_df):
         new_tokens = out[0][inputs["input_ids"].shape[1]:]
         text = tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
         preds.append(1 if text.startswith("1") else 0)
+        del inputs, out, new_tokens
     return f1_score(val_df["label"].tolist(), preds, zero_division=0)
 
 
@@ -184,9 +185,17 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir, val_df)
     model.save_pretrained(fold_adapter_dir)
     tokenizer.save_pretrained(fold_adapter_dir)
 
-    # Clean up GPU memory
+    # Sever internal trainer references before deletion so GC can free GPU tensors
+    trainer.model = None
+    trainer.optimizer = None
+    trainer.lr_scheduler = None
+    for cb in trainer.callback_handler.callbacks:
+        if hasattr(cb, "model"):
+            cb.model = None
     del model, tokenizer, trainer
+    gc.collect()
     torch.cuda.empty_cache()
+    torch.cuda.synchronize()
     gc.collect()
 
     return val_f1
