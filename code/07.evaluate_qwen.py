@@ -89,7 +89,7 @@ for i, (_, row) in enumerate(val_df.iterrows()):
         print(f"  {i + 1}/{len(val_df)} done")
 
 # ============================================================
-# Save validation df with predictions
+# Save validation df with predictions.
 # ============================================================
 val_df = val_df.copy()
 val_df["preds"] = preds
