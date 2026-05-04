@@ -12,7 +12,7 @@ from unsloth import FastModel
 # ============================================================
 # Configuration
 # ============================================================
-MODEL_NAME  = "Qwen/Qwen3.5-35B-A3B"
+MODEL_NAME  = "Qwen/Qwen3.5-9B"
 ADAPTER_DIR = f"models/finetuned/{MODEL_NAME.split('/')[-1]}"
 DATA_CSV    = "data/training_set.csv"
 
@@ -87,6 +87,14 @@ for i, (_, row) in enumerate(val_df.iterrows()):
 
     if (i + 1) % 25 == 0:
         print(f"  {i + 1}/{len(val_df)} done")
+
+# ============================================================
+# Save validation df with predictions
+# ============================================================
+val_df = val_df.copy()
+val_df["preds"] = preds
+val_df.to_csv(f"data/val_preds_{MODEL_NAME.split('/')[-1]}.csv", index=False)
+print("Saved validation predictions.")
 
 # ============================================================
 # Results
