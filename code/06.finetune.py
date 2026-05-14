@@ -43,6 +43,7 @@ SYSTEM_PROMPT = (
     "  - Flexibility or rigidity of hours\n"
     "  - Availability requirements (on-call, weekends, holidays)\n"
     "  - Stability or predictability of working hours\n\n"
+    "  - Paid time off (PTO) policies, requests and flexibility around it"
     "Here are some examples of a review mentioning schedule:\n"
     "  1. 'long hours and a lot of work'\n"
     "  2. 'they offer flexible hours and the staff is very nice.'\n"

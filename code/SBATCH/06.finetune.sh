@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=qwen-ft-test
-#SBATCH --partition=scavenger-gpu
+#SBATCH --partition=h200ea
 #SBATCH --account=dctrl-as1676
-#SBATCH --gres=gpu:6000_ada_generation:2
+#SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=128G
+#SBATCH --mem=256G
 #SBATCH --time=2-00:00:00
 #SBATCH --output=logs/finetune.out
 #SBATCH --error=logs/finetune.err
