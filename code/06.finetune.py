@@ -93,7 +93,7 @@ def compute_fold_f1(model, tokenizer, val_df):
         text = tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
         preds.append(1 if text.startswith("1") else 0)
         del inputs, out, new_tokens
-    return f1_score(val_df["label"].tolist(), preds, zero_division=0)
+    return f1_score(val_df["corrected_label"].tolist(), preds, zero_division=0)
 
 
 def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir, val_df):
@@ -239,10 +239,10 @@ def objective(trial):
         val_df = train_df_full.iloc[val_idx]
 
         train_dataset = Dataset.from_dict({
-            "text": [format_example(row["doc"], row["label"]) for _, row in train_df.iterrows()]
+            "text": [format_example(row["doc"], row["corrected_label"]) for _, row in train_df.iterrows()]
         })
         val_dataset = Dataset.from_dict({
-            "text": [format_example(row["doc"], row["label"]) for _, row in val_df.iterrows()]
+            "text": [format_example(row["doc"], row["corrected_label"]) for _, row in val_df.iterrows()]
         })
 
         fold_output_dir = os.path.join(RESULTS_DIR, f"trial_{trial.number}", f"fold_{fold_idx}")
