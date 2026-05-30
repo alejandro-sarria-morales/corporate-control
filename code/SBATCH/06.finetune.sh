@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=qwen-ft-test
-#SBATCH --partition=h200ea
+#SBATCH --job-name=qwen35b-ft
+#SBATCH --partition=scavenger-gpu
 #SBATCH --account=dctrl-as1676
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:6000_ada_generation:2
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=256G
-#SBATCH --time=2-00:00:00
-#SBATCH --output=logs/finetune.out
-#SBATCH --error=logs/finetune.err
+#SBATCH --time=4-00:00:00
+#SBATCH --output=/hpc/dctrl/as1676/projects/corporate-control/code/SBATCH/logs/finetune.out
+#SBATCH --error=/hpc/dctrl/as1676/projects/corporate-control/code/SBATCH/logs/finetune.err
 #SBATCH --mail-user=as1676@duke.edu
 #SBATCH --mail-type=BEGIN,FAIL,END
 #SBATCH --requeue

@@ -23,7 +23,7 @@ from transformers import EarlyStoppingCallback
 # ============================================================
 # Configuration
 # ============================================================
-MODEL_NAME  = "Qwen/Qwen3.5-9B"
+MODEL_NAME  = "Qwen/Qwen3.5-35B-A3B"
 MAX_SEQ_LEN = 512
 DATA_CSV    = "data/training_set.csv"
 MODEL_SLUG  = MODEL_NAME.split("/")[-1]
@@ -31,7 +31,7 @@ RESULTS_DIR = f"models/cv_results/{MODEL_SLUG}"
 FINAL_DIR   = f"models/finetuned/{MODEL_SLUG}"
 
 N_FOLDS     = 5
-N_TRIALS    = 20
+N_TRIALS    = 5
 PATIENCE    = 3              # Early stopping: stop after 3 evals without improvement
 
 SYSTEM_PROMPT = (
@@ -130,7 +130,7 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir, val_df)
         model,
         r=config["lora_rank"],
         lora_alpha=config["lora_alpha"],
-        lora_dropout=config["lora_dropout"],
+        lora_dropout=0.0,  # MoE ParamWrapper layers (expert weights) require dropout=0
         bias="none",
         use_gradient_checkpointing="unsloth",
         random_state=123,
@@ -217,7 +217,6 @@ skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=123)
 
 def objective(trial):
     rank = trial.suggest_categorical("r", [4, 8, 16, 32])
-    dropout = trial.suggest_categorical("dropout", [0.05, 0.1])
     lr = trial.suggest_float("lr", 5e-5, 3e-4, log=True)
     alpha_mode = trial.suggest_categorical("alpha_mode", ["r", "2r"])
     alpha = rank if alpha_mode == "r" else 2 * rank
@@ -225,12 +224,12 @@ def objective(trial):
     config = {
         "lora_rank": rank,
         "lora_alpha": alpha,
-        "lora_dropout": dropout,
+        "lora_dropout": 0.0,  # MoE ParamWrapper requires dropout=0
         "learning_rate": lr,
     }
 
     print(f"\n{'*'*60}")
-    print(f"  Trial {trial.number}  |  r={rank}, alpha={alpha}, dropout={dropout}, lr={lr:.2e}")
+    print(f"  Trial {trial.number}  |  r={rank}, alpha={alpha}, lr={lr:.2e}")
     print(f"{'*'*60}")
 
     fold_f1s = []
@@ -273,7 +272,7 @@ def objective(trial):
 
 
 study = optuna.create_study(direction="maximize")
-study.optimize(objective, n_trials=N_TRIALS, catch=(torch.cuda.OutOfMemoryError, NotImplementedError, RuntimeError))
+study.optimize(objective, n_trials=N_TRIALS, catch=(torch.cuda.OutOfMemoryError, NotImplementedError, RuntimeError, ValueError))
 
 # ============================================================
 # Find best config and save its adapter

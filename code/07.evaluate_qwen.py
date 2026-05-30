@@ -12,7 +12,7 @@ from unsloth import FastModel
 # ============================================================
 # Configuration
 # ============================================================
-MODEL_NAME  = "Qwen/Qwen3.5-9B"
+MODEL_NAME  = "Qwen/Qwen3.5-35B-A3B"
 ADAPTER_DIR = f"models/finetuned/{MODEL_NAME.split('/')[-1]}"
 DATA_CSV    = "data/training_set.csv"
 
@@ -54,8 +54,8 @@ print("Loading model...")
 model, tokenizer = FastModel.from_pretrained(
     model_name=ADAPTER_DIR,
     max_seq_length=2048,
-    load_in_4bit=False,
-    load_in_16bit=True,
+    load_in_4bit=True,
+    load_in_16bit=False,
     full_finetuning=False,
     device_map="balanced"
 )

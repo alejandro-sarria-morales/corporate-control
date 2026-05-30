@@ -4,8 +4,8 @@ Unsloth: Your Flash Attention 2 installation seems to be broken. Using Xformers 
 Loading evaluation data...
 Evaluation examples: 177
 Loading model...
-==((====))==  Unsloth 2026.3.18: Fast Qwen3_5 patching. Transformers: 5.3.0.
-   \\   /|    NVIDIA RTX 6000 Ada Generation. Num GPUs = 1. Max memory: 47.374 GB. Platform: Linux.
+==((====))==  Unsloth 2026.3.18: Fast Qwen3_5_MoE patching. Transformers: 5.3.0.
+   \\   /|    NVIDIA RTX 6000 Ada Generation. Num GPUs = 2. Max memory: 47.374 GB. Platform: Linux.
 O^O/ \_/ \    Torch: 2.11.0+cu130. CUDA: 8.9. CUDA Toolkit: 13.0. Triton: 3.6.0
 \        /    Bfloat16 = TRUE. FA [Xformers = 0.0.35. FA2 = False]
  "-____-"     Free license: http://github.com/unslothai/unsloth
@@ -18,16 +18,17 @@ Running predictions...
   125/177 done
   150/177 done
   175/177 done
+Saved validation predictions.
 
 ==================================================
 Classification Report:
 ==================================================
                  precision    recall  f1-score   support
 
-No schedule (0)       0.90      0.89      0.90        91
-   Schedule (1)       0.89      0.90      0.89        86
+No schedule (0)       0.95      0.84      0.89        91
+   Schedule (1)       0.85      0.95      0.90        86
 
        accuracy                           0.89       177
-      macro avg       0.89      0.89      0.89       177
-   weighted avg       0.89      0.89      0.89       177
+      macro avg       0.90      0.89      0.89       177
+   weighted avg       0.90      0.89      0.89       177
 
