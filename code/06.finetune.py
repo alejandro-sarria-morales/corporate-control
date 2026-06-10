@@ -202,6 +202,93 @@ def train_fold(train_dataset, val_dataset, config, fold_idx, output_dir, val_df)
     return val_f1
 
 
+def train_final(train_df, config):
+    """Retrain on the full training set with the best config and save to FINAL_DIR."""
+    print(f"\n{'='*60}")
+    print(f"  FINAL TRAINING on full dataset ({len(train_df)} examples)")
+    print(f"  r={config['lora_rank']}, alpha={config['lora_alpha']}, lr={config['learning_rate']:.2e}")
+    print(f"{'='*60}\n")
+
+    gc.collect()
+    torch.cuda.empty_cache()
+    torch.cuda.synchronize()
+
+    cache_dir = os.path.join(os.getcwd(), "unsloth_compiled_cache")
+    if os.path.exists(cache_dir):
+        shutil.rmtree(cache_dir)
+
+    model, tokenizer = FastModel.from_pretrained(
+        model_name=MODEL_NAME,
+        max_seq_length=MAX_SEQ_LEN,
+        load_in_4bit=True,
+        load_in_16bit=False,
+        full_finetuning=False,
+        device_map="auto",
+    )
+
+    if hasattr(tokenizer, "tokenizer"):
+        tokenizer = tokenizer.tokenizer
+
+    model = FastModel.get_peft_model(
+        model,
+        r=config["lora_rank"],
+        lora_alpha=config["lora_alpha"],
+        lora_dropout=0.0,
+        bias="none",
+        use_gradient_checkpointing="unsloth",
+        random_state=123,
+        max_seq_length=MAX_SEQ_LEN,
+        target_modules=[
+            "q_proj", "k_proj", "v_proj", "o_proj",
+            "gate_proj", "up_proj", "down_proj",
+        ],
+    )
+
+    train_dataset = Dataset.from_dict({
+        "text": [format_example(row["doc"], row["corrected_label"]) for _, row in train_df.iterrows()]
+    })
+
+    os.makedirs(FINAL_DIR, exist_ok=True)
+    trainer = SFTTrainer(
+        model=model,
+        tokenizer=tokenizer,
+        train_dataset=train_dataset,
+        args=SFTConfig(
+            max_seq_length=MAX_SEQ_LEN,
+            per_device_train_batch_size=1,
+            gradient_accumulation_steps=8,
+            warmup_steps=10,
+            num_train_epochs=5,
+            learning_rate=config["learning_rate"],
+            optim="adamw_8bit",
+            bf16=True,
+            logging_steps=5,
+            eval_strategy="no",
+            save_strategy="no",
+            output_dir=FINAL_DIR,
+            seed=3407,
+            dataloader_num_workers=0,
+            dataset_num_proc=1,
+        ),
+        dataset_text_field="text",
+    )
+
+    trainer.train()
+
+    model.save_pretrained(FINAL_DIR)
+    tokenizer.save_pretrained(FINAL_DIR)
+    print(f"\n  Final model saved to {FINAL_DIR}")
+
+    trainer.model = None
+    trainer.optimizer = None
+    trainer.lr_scheduler = None
+    del model, tokenizer, trainer
+    gc.collect()
+    torch.cuda.empty_cache()
+    torch.cuda.synchronize()
+    gc.collect()
+
+
 # ============================================================
 # Main: Optuna Hyperparameter Search with K-Fold CV
 # ============================================================
@@ -285,16 +372,23 @@ for t in sorted([t for t in study.trials if t.value is not None], key=lambda x: 
     print(f"  trial={t.number}  |  mean_val_f1={t.value:.4f}  |  params={t.params}")
 
 best_trial = study.best_trial
-best_fold_f1s = best_trial.user_attrs["fold_f1s"]
-best_fold_idx = int(np.argmax(best_fold_f1s))
-best_adapter_path = os.path.join(RESULTS_DIR, f"trial_{best_trial.number}", f"fold_{best_fold_idx}", "best_adapter")
 
 print(f"\nBest config: trial={best_trial.number}, params={best_trial.params} (mean_val_f1={best_trial.value:.4f})")
-print(f"Saving best adapter (trial={best_trial.number}, fold={best_fold_idx+1}) to {FINAL_DIR}")
+print("Retraining on full training set with best config...")
+
+best_rank = best_trial.params["r"]
+best_alpha_mode = best_trial.params["alpha_mode"]
+best_config = {
+    "lora_rank": best_rank,
+    "lora_alpha": best_rank if best_alpha_mode == "r" else 2 * best_rank,
+    "lora_dropout": 0.0,
+    "learning_rate": best_trial.params["lr"],
+}
 
 if os.path.exists(FINAL_DIR):
     shutil.rmtree(FINAL_DIR)
-shutil.copytree(best_adapter_path, FINAL_DIR)
+
+train_final(train_df_full, best_config)
 
 # Save full results log
 results_log = {
@@ -306,7 +400,7 @@ results_log = {
     "best_trial": best_trial.number,
     "best_params": best_trial.params,
     "best_mean_val_f1": best_trial.value,
-    "best_fold": best_fold_idx,
+    "final_model": "retrained on full training set with best_params",
     "all_trials": [
         {
             "trial": t.number,
@@ -314,12 +408,12 @@ results_log = {
             "mean_val_f1": t.value,
             "fold_f1s": t.user_attrs.get("fold_f1s", []),
         }
-	        for t in study.trials
+        for t in study.trials
     ],
 }
 with open(os.path.join(RESULTS_DIR, "cv_results.json"), "w") as f:
     json.dump(results_log, f, indent=2, default=str)
 
 print(f"\nFull results saved to {RESULTS_DIR}/cv_results.json")
-print(f"Best adapter saved to {FINAL_DIR}")
+print(f"Final model saved to {FINAL_DIR}")
 print("Done!")
