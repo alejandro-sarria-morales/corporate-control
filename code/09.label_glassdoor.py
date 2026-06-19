@@ -16,6 +16,7 @@ ADAPTER_DIR      = f"models/finetuned/{MODEL_NAME.split('/')[-1]}"
 INPUT_CSV        = "data/glassdoor_reviews_clean.csv"
 OUTPUT_CSV       = "data/glassdoor_labelled.csv"
 CHECKPOINT_EVERY = 500
+ROW_BATCH_SIZE   = 32
 
 SYSTEM_PROMPT = (
     "You are a research assistant classifying job reviews.\n"
@@ -55,22 +56,28 @@ SYSTEM_PROMPT = (
 )
 
 
-def classify(text, model, tokenizer):
-    """Return 1, 0, or None if text is too short to classify."""
-    if not isinstance(text, str) or len(text.split()) < 3:
-        return None
-    prompt = (
+def classify_batch(texts, model, tokenizer):
+    """Return a list of 1, 0, or None (for texts too short to classify), in order."""
+    results = [None] * len(texts)
+    keep_idx = [i for i, t in enumerate(texts) if isinstance(t, str) and len(t.split()) >= 3]
+    if not keep_idx:
+        return results
+
+    prompts = [
         f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
-        f"<|im_start|>user\n{text}<|im_end|>\n"
+        f"<|im_start|>user\n{texts[i]}<|im_end|>\n"
         f"<|im_start|>assistant\n"
-    )
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+        for i in keep_idx
+    ]
+    inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(model.device)
     with torch.no_grad():
-        output = model.generate(**inputs, max_new_tokens=10, do_sample=False,
+        output = model.generate(**inputs, max_new_tokens=4, do_sample=False,
                                 pad_token_id=tokenizer.eos_token_id)
-    pred = tokenizer.decode(output[0][inputs["input_ids"].shape[1]:],
-                            skip_special_tokens=True).strip()
-    return 1 if pred.startswith("1") else 0
+    prompt_len = inputs["input_ids"].shape[1]
+    decoded = tokenizer.batch_decode(output[:, prompt_len:], skip_special_tokens=True)
+    for i, pred in zip(keep_idx, decoded):
+        results[i] = 1 if pred.strip().startswith("1") else 0
+    return results
 
 
 # ============================================================
@@ -120,6 +127,12 @@ model, tokenizer = FastModel.from_pretrained(
 if hasattr(tokenizer, "tokenizer"):
     tokenizer = tokenizer.tokenizer
 
+# Left padding required so batched prompts share a common length for slicing
+# the generated continuation off the end of each sequence.
+tokenizer.padding_side = "left"
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+
 # ============================================================
 # Inference loop
 # ============================================================
@@ -127,19 +140,28 @@ todo_idx = df.index[~df["reviewID"].isin(already_done)].tolist()
 n_todo = len(todo_idx)
 print(f"Running inference on {n_todo:,} rows...")
 
-for step, idx in enumerate(todo_idx):
-    row = df.loc[idx]
-    df.at[idx, "label_pros"] = classify(row["review_pros"], model, tokenizer)
-    df.at[idx, "label_cons"] = classify(row["review_cons"], model, tokenizer)
-    already_done.add(row["reviewID"])  # mark as processed so checkpoint includes it
+rows_done = 0
+last_checkpoint = 0
+for chunk_start in range(0, n_todo, ROW_BATCH_SIZE):
+    chunk_idx = todo_idx[chunk_start:chunk_start + ROW_BATCH_SIZE]
+    chunk = df.loc[chunk_idx]
 
-    if (step + 1) % 100 == 0:
-        print(f"  {step + 1:,}/{n_todo:,} ({(step + 1) / n_todo * 100:.1f}%)")
+    pros_preds = classify_batch(chunk["review_pros"].tolist(), model, tokenizer)
+    cons_preds = classify_batch(chunk["review_cons"].tolist(), model, tokenizer)
 
-    if (step + 1) % CHECKPOINT_EVERY == 0:
+    for idx, pros_pred, cons_pred in zip(chunk_idx, pros_preds, cons_preds):
+        df.at[idx, "label_pros"] = pros_pred
+        df.at[idx, "label_cons"] = cons_pred
+        already_done.add(df.at[idx, "reviewID"])
+
+    rows_done += len(chunk_idx)
+    print(f"  {rows_done:,}/{n_todo:,} ({rows_done / n_todo * 100:.1f}%)")
+
+    if rows_done - last_checkpoint >= CHECKPOINT_EVERY:
         # Only write processed rows — avoids NaN-polluting the output with unprocessed rows
         df[df["reviewID"].isin(already_done)].to_csv(OUTPUT_CSV, index=False)
         print(f"  [checkpoint saved]")
+        last_checkpoint = rows_done
 
 # ============================================================
 # Final save
