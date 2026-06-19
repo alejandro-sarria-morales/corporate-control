@@ -87,11 +87,18 @@ if os.path.exists(OUTPUT_CSV):
     print(f"Resuming from existing output: {OUTPUT_CSV}")
     done = pd.read_csv(OUTPUT_CSV, usecols=["reviewID", "label_pros", "label_cons"],
                        low_memory=False)
+    # Drop duplicate reviewIDs to prevent row explosion on merge
+    done = done.drop_duplicates(subset="reviewID", keep="first")
+    # Drop rows where both labels are NaN — these were never classified (old checkpoint bug
+    # wrote the whole df including unprocessed rows; NaN from too-short text is kept because
+    # at least one of the two fields will typically differ, and we accept re-running the rare
+    # case where both fields are too short)
+    done = done[~(done["label_pros"].isna() & done["label_cons"].isna())]
     already_done = set(done["reviewID"].tolist())
-    # Merge existing labels back into df so we can write a single file at end
+    # Merge existing labels back into df
     df = df.merge(done, on="reviewID", how="left")
-    n_done = len(already_done)
-    print(f"  {n_done:,} rows already labelled, {len(df) - n_done:,} remaining")
+    n_done = df["reviewID"].isin(already_done).sum()
+    print(f"  {n_done:,} rows already labelled, {(~df['reviewID'].isin(already_done)).sum():,} remaining")
 else:
     df["label_pros"] = None
     df["label_cons"] = None
@@ -124,18 +131,21 @@ for step, idx in enumerate(todo_idx):
     row = df.loc[idx]
     df.at[idx, "label_pros"] = classify(row["review_pros"], model, tokenizer)
     df.at[idx, "label_cons"] = classify(row["review_cons"], model, tokenizer)
+    already_done.add(row["reviewID"])  # mark as processed so checkpoint includes it
 
     if (step + 1) % 100 == 0:
         print(f"  {step + 1:,}/{n_todo:,} ({(step + 1) / n_todo * 100:.1f}%)")
 
     if (step + 1) % CHECKPOINT_EVERY == 0:
-        df.to_csv(OUTPUT_CSV, index=False)
+        # Only write processed rows — avoids NaN-polluting the output with unprocessed rows
+        df[df["reviewID"].isin(already_done)].to_csv(OUTPUT_CSV, index=False)
         print(f"  [checkpoint saved]")
 
 # ============================================================
 # Final save
 # ============================================================
-df.to_csv(OUTPUT_CSV, index=False)
+saved = df[df["reviewID"].isin(already_done)]
+saved.to_csv(OUTPUT_CSV, index=False)
 print(f"\nDone. Output saved to {OUTPUT_CSV}")
-print(f"  label_pros distribution:\n{df['label_pros'].value_counts(dropna=False)}")
-print(f"  label_cons distribution:\n{df['label_cons'].value_counts(dropna=False)}")
+print(f"  label_pros distribution:\n{saved['label_pros'].value_counts(dropna=False)}")
+print(f"  label_cons distribution:\n{saved['label_cons'].value_counts(dropna=False)}")
