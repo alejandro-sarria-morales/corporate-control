@@ -5,6 +5,7 @@ import pandas as pd
 os.environ["UNSLOTH_COMPILE_DISABLE"] = "1"
 os.environ["UNSLOTH_DISABLE_FAST_GENERATION"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 from unsloth import FastModel
 
@@ -16,7 +17,7 @@ ADAPTER_DIR      = f"models/finetuned/{MODEL_NAME.split('/')[-1]}"
 INPUT_CSV        = "data/glassdoor_reviews_clean.csv"
 OUTPUT_CSV       = "data/glassdoor_labelled.csv"
 CHECKPOINT_EVERY = 500
-ROW_BATCH_SIZE   = 32
+ROW_BATCH_SIZE   = 8
 
 SYSTEM_PROMPT = (
     "You are a research assistant classifying job reviews.\n"
@@ -155,6 +156,7 @@ for chunk_start in range(0, n_todo, ROW_BATCH_SIZE):
         already_done.add(df.at[idx, "reviewID"])
 
     rows_done += len(chunk_idx)
+    torch.cuda.empty_cache()
     print(f"  {rows_done:,}/{n_todo:,} ({rows_done / n_todo * 100:.1f}%)")
 
     if rows_done - last_checkpoint >= CHECKPOINT_EVERY:
