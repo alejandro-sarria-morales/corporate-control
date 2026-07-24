@@ -6,8 +6,9 @@
 #
 #   python code/12.evaluate_multilabel.py --preds_csv data/trainingfinal/gpt_preds.csv --name gpt-5.4
 #
-# Requires OPENAI_API_KEY and outbound internet, so run on a login node or locally --
-# NOT on a DCC compute node (those typically have no internet).
+# CPU-only job (just OpenAI API calls) -- no GPU or DCC allocation needed. Run it the
+# way you normally run the GPT benchmarks (locally / on CPU); needs OPENAI_API_KEY.
+# DCC is reserved for fine-tuning and evaluating the open models.
 
 library(ellmer)
 library(tidyverse)
