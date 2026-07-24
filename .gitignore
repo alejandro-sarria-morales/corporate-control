@@ -1,0 +1,13 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.Renviron
+code\02.indeed_descriptives.R
+
+# Python
+__pycache__/
+*.pyc
+
+# Trained model adapters / checkpoints (large; synced outside git)
+models/
