@@ -70,7 +70,8 @@ def classify_batch(texts, model, tokenizer):
         f"<|im_start|>assistant\n"
         for i in keep_idx
     ]
-    inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(model.device)
+    inputs = tokenizer(prompts, return_tensors="pt", padding=True,
+                       truncation=True, max_length=768).to(model.device)
     with torch.no_grad():
         output = model.generate(**inputs, max_new_tokens=4, do_sample=False,
                                 pad_token_id=tokenizer.eos_token_id)
@@ -148,6 +149,7 @@ for chunk_start in range(0, n_todo, ROW_BATCH_SIZE):
     chunk = df.loc[chunk_idx]
 
     pros_preds = classify_batch(chunk["review_pros"].tolist(), model, tokenizer)
+    torch.cuda.empty_cache()
     cons_preds = classify_batch(chunk["review_cons"].tolist(), model, tokenizer)
 
     for idx, pros_pred, cons_pred in zip(chunk_idx, pros_preds, cons_preds):
