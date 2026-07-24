@@ -21,4 +21,6 @@ conda activate qwen-ft
 
 export HF_HOME=/hpc/dctrl/as1676/models/hf_cache
 
+pip install -q matplotlib
+
 python code/08.data_saturation.py
