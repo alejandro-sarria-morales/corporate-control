@@ -10,6 +10,14 @@ learned to reproduce half a system prompt and every generation came back malform
 
 Deliberately torch-free at import time: `12 --preds_csv` (the GPT benchmark scoring
 path) must keep working on a CPU-only box with no unsloth installed.
+
+Runnable directly to validate the token budget without a GPU -- 11.finetune_multilabel.py
+imports unsloth at module level, so it cannot run on a login node:
+
+    python code/multilabel_prompt.py [path/to/labelled.csv]
+
+Doing that on a login node also warms the tokenizer into HF_HOME, which matters because
+DCC compute nodes have no internet.
 """
 
 import os
@@ -73,6 +81,66 @@ def im_end_id(tokenizer):
     return tid
 
 
+ANSWER_MARGIN = 8  # room for <|im_end|>, pad, and chat-template drift
+
+
+def preflight_token_budget(df, max_seq_len=None):
+    """Fail in seconds if max_seq_len cannot hold prompt + review + answer.
+
+    This is the check that would have caught the v1 failure before it spent four days:
+    MAX_SEQ_LEN=512 against a ~1030-token system prompt truncated every training
+    sequence before the answer digits, so the model was never supervised on the answer
+    and every generation came back malformed.
+
+    Tokenizer only -- no GPU, no unsloth, ~3s.
+    """
+    from transformers import AutoTokenizer  # local: keeps this module torch-free to import
+
+    import numpy as np
+
+    max_seq_len = MAX_SEQ_LEN if max_seq_len is None else max_seq_len
+    tok = AutoTokenizer.from_pretrained(MODEL_NAME)
+    n_sys = len(tok(SYSTEM_PROMPT, add_special_tokens=False)["input_ids"])
+
+    lens = np.asarray([
+        len(tok(format_example(r["review_text"], r["schedule_related"],
+                               r["job_control_related"]),
+                add_special_tokens=False)["input_ids"])
+        for _, r in df.iterrows()
+    ])
+    need = int(lens.max()) + ANSWER_MARGIN
+
+    print("\n" + "=" * 60)
+    print("PREFLIGHT: token budget")
+    print(f"  system prompt                : {n_sys}")
+    print(f"  full example min/med/max     : {lens.min()} / {int(np.median(lens))} / {lens.max()}")
+    print(f"  required (max + {ANSWER_MARGIN} margin)   : {need}")
+    print(f"  MAX_SEQ_LEN                  : {max_seq_len}")
+    print("=" * 60)
+
+    if need > max_seq_len:
+        raise SystemExit(
+            f"FATAL: MAX_SEQ_LEN={max_seq_len} truncates training examples.\n"
+            f"  Longest example needs {need} tokens; the system prompt alone is {n_sys}.\n"
+            f"  The answer digits would be cut off, the model would train on a constant\n"
+            f"  prompt prefix, and every generation would be malformed.\n"
+            f"  Set MAX_SEQ_LEN >= {((need + 63) // 64) * 64} in code/multilabel_prompt.py."
+        )
+
+    # Direct check: does the answer actually survive right-truncation?
+    w = df.iloc[int(np.argmax(lens))]
+    ids = tok(format_example(w["review_text"], w["schedule_related"], w["job_control_related"]),
+              add_special_tokens=False)["input_ids"][:max_seq_len]
+    tail = tok.decode(ids[-8:])
+    expected = f"{int(w['schedule_related'])}{int(w['job_control_related'])}"
+    if expected not in tail:
+        raise SystemExit(
+            f"FATAL: answer {expected!r} missing from the last 8 tokens after truncation "
+            f"at MAX_SEQ_LEN={max_seq_len}; tail decoded as {tail!r}"
+        )
+    print(f"  answer survives truncation   : OK (tail = {tail!r})\n")
+
+
 def generate_two_digit(model, tokenizer, doc, max_new_tokens=8):
     """Greedy decode one review; return the raw generated text (reasoning stripped)."""
     import torch  # local import keeps this module importable without torch
@@ -91,3 +159,14 @@ def generate_two_digit(model, tokenizer, doc, max_new_tokens=8):
     )
     del inputs, out
     return strip_reasoning(text)
+
+
+if __name__ == "__main__":
+    # Login-node validation: checks the token budget and warms the tokenizer cache.
+    import sys
+    import pandas as pd
+
+    csv = sys.argv[1] if len(sys.argv) > 1 else "data/trainingfinal/labelled.csv"
+    print(f"Checking token budget for {csv} (MAX_SEQ_LEN={MAX_SEQ_LEN})")
+    preflight_token_budget(pd.read_csv(csv))
+    print("Preflight OK.")

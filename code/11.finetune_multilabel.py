@@ -51,8 +51,9 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # for local modules
 from metrics_multilabel import parse_two_digit
 from multilabel_prompt import (
-    MODEL_NAME, MODEL_SLUG, MAX_SEQ_LEN, SYSTEM_PROMPT,
+    MODEL_NAME, MODEL_SLUG, MAX_SEQ_LEN, SYSTEM_PROMPT, ANSWER_MARGIN,
     format_prompt, format_answer, format_example, generate_two_digit,
+    preflight_token_budget,
 )
 
 os.environ["UNSLOTH_COMPILE_DISABLE"] = "1"
@@ -63,7 +64,7 @@ os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 from unsloth import FastModel
 from datasets import Dataset
 from trl import SFTTrainer, SFTConfig
-from transformers import AutoTokenizer, EarlyStoppingCallback
+from transformers import EarlyStoppingCallback
 
 # ============================================================
 # Configuration
@@ -270,59 +271,6 @@ def _load_lora(config):
     if hasattr(model, "print_trainable_parameters"):
         model.print_trainable_parameters()
     return model, tokenizer
-
-
-ANSWER_MARGIN = 8  # room for <|im_end|>, pad, and chat-template drift
-
-
-def preflight_token_budget(df):
-    """Fail in seconds if MAX_SEQ_LEN cannot hold prompt + review + answer.
-
-    This is the check that would have caught the previous run's failure before it spent
-    four days: MAX_SEQ_LEN=512 against a ~1030-token system prompt truncated every
-    training sequence before the answer digits, so the model was never supervised on the
-    answer and every generation came back malformed. Tokenizer only -- no GPU, ~3s.
-    """
-    tok = AutoTokenizer.from_pretrained(MODEL_NAME)
-    n_sys = len(tok(SYSTEM_PROMPT, add_special_tokens=False)["input_ids"])
-
-    lens = np.asarray([
-        len(tok(format_example(r["review_text"], r["schedule_related"],
-                               r["job_control_related"]),
-                add_special_tokens=False)["input_ids"])
-        for _, r in df.iterrows()
-    ])
-    need = int(lens.max()) + ANSWER_MARGIN
-
-    print("\n" + "=" * 60)
-    print("PREFLIGHT: token budget")
-    print(f"  system prompt                : {n_sys}")
-    print(f"  full example min/med/max     : {lens.min()} / {int(np.median(lens))} / {lens.max()}")
-    print(f"  required (max + {ANSWER_MARGIN} margin)   : {need}")
-    print(f"  MAX_SEQ_LEN                  : {MAX_SEQ_LEN}")
-    print("=" * 60)
-
-    if need > MAX_SEQ_LEN:
-        raise SystemExit(
-            f"FATAL: MAX_SEQ_LEN={MAX_SEQ_LEN} truncates training examples.\n"
-            f"  Longest example needs {need} tokens; the system prompt alone is {n_sys}.\n"
-            f"  The answer digits would be cut off, the model would train on a constant\n"
-            f"  prompt prefix, and every generation would be malformed.\n"
-            f"  Set MAX_SEQ_LEN >= {((need + 63) // 64) * 64} in code/multilabel_prompt.py."
-        )
-
-    # Direct check: does the answer actually survive right-truncation?
-    w = df.iloc[int(np.argmax(lens))]
-    ids = tok(format_example(w["review_text"], w["schedule_related"], w["job_control_related"]),
-              add_special_tokens=False)["input_ids"][:MAX_SEQ_LEN]
-    tail = tok.decode(ids[-8:])
-    expected = f"{int(w['schedule_related'])}{int(w['job_control_related'])}"
-    if expected not in tail:
-        raise SystemExit(
-            f"FATAL: answer {expected!r} missing from the last 8 tokens after truncation "
-            f"at MAX_SEQ_LEN={MAX_SEQ_LEN}; tail decoded as {tail!r}"
-        )
-    print(f"  answer survives truncation   : OK (tail = {tail!r})\n")
 
 
 def assert_trainer_dataset(trainer):
