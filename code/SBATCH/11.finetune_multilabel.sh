@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:6000_ada_generation:2
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=256G
-#SBATCH --time=4-00:00:00
+#SBATCH --time=7-00:00:00
 #SBATCH --output=/hpc/dctrl/as1676/projects/corporate-control/code/SBATCH/logs/ml_finetune.out
 #SBATCH --error=/hpc/dctrl/as1676/projects/corporate-control/code/SBATCH/logs/ml_finetune.err
 #SBATCH --mail-user=as1676@duke.edu

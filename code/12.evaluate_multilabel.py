@@ -22,12 +22,10 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from metrics_multilabel import parse_two_digit, multilabel_report
+from multilabel_prompt import MODEL_SLUG, MAX_SEQ_LEN, generate_two_digit
 
-MODEL_NAME  = "Qwen/Qwen3.5-35B-A3B"
-MODEL_SLUG  = MODEL_NAME.split("/")[-1]
 ADAPTER_DIR = f"models/finetuned/{MODEL_SLUG}_multilabel"
 DATA_CSV    = "data/trainingfinal/labelled.csv"
-PROMPT_FILE = "code/prompts/multilabel_system_prompt.txt"
 TARGET_F1   = 0.95
 
 
@@ -73,21 +71,17 @@ def score_from_preds_csv(path, name):
 
 
 def score_finetuned_model():
-    import torch
     os.environ["UNSLOTH_COMPILE_DISABLE"] = "1"
     os.environ["UNSLOTH_DISABLE_FAST_GENERATION"] = "1"
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
     from unsloth import FastModel
-
-    with open(PROMPT_FILE, encoding="utf-8") as f:
-        system_prompt = f.read().strip()
 
     test = load_test_set()
 
     print("Loading model + adapter...")
     model, tokenizer = FastModel.from_pretrained(
         model_name=ADAPTER_DIR,
-        max_seq_length=2048,
+        max_seq_length=MAX_SEQ_LEN,  # match training; see multilabel_prompt.py
         load_in_4bit=True,
         load_in_16bit=False,
         full_finetuning=False,
@@ -99,16 +93,7 @@ def score_finetuned_model():
     print("Running predictions...")
     raw, sp, cp, malformed = [], [], [], 0
     for i, (_, row) in enumerate(test.iterrows()):
-        prompt = (
-            f"<|im_start|>system\n{system_prompt}<|im_end|>\n"
-            f"<|im_start|>user\n{row['review_text']}<|im_end|>\n"
-            f"<|im_start|>assistant\n"
-        )
-        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-        with torch.no_grad():
-            out = model.generate(**inputs, max_new_tokens=4, do_sample=False,
-                                 pad_token_id=tokenizer.eos_token_id)
-        text = tokenizer.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+        text = generate_two_digit(model, tokenizer, row["review_text"], max_new_tokens=8)
         s, c, ok = parse_two_digit(text)
         malformed += (not ok)
         raw.append(text); sp.append(s); cp.append(c)
