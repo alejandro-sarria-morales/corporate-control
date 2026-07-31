@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/hpc/dctrl/as1676/projects/corporate-control/code/12.evaluate_multilabel.py", line 131, in <module>
+    main()
+  File "/hpc/dctrl/as1676/projects/corporate-control/code/12.evaluate_multilabel.py", line 127, in main
+    score_finetuned_model()
+  File "/hpc/dctrl/as1676/projects/corporate-control/code/12.evaluate_multilabel.py", line 82, in score_finetuned_model
+    model, tokenizer = FastModel.from_pretrained(
+  File "/hpc/dctrl/as1676/miniconda3/envs/qwen-ft/lib/python3.10/site-packages/unsloth/models/loader.py", line 1101, in from_pretrained
+    model_types = get_transformers_model_type(
+  File "/hpc/dctrl/as1676/miniconda3/envs/qwen-ft/lib/python3.10/site-packages/unsloth_zoo/hf_utils.py", line 112, in get_transformers_model_type
+    raise RuntimeError(
+RuntimeError: Unsloth: No config file found - are you sure the `model_name` is correct?
+If you're using a model on your local device, confirm if the folder location exists.
+If you're using a HuggingFace online model, check if it exists.

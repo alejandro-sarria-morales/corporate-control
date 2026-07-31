@@ -1,0 +1,113 @@
+🦥 Unsloth: Will patch your computer to enable 2x faster free finetuning.
+Unsloth: Your Flash Attention 2 installation seems to be broken. Using Xformers instead. No performance changes will be seen.
+🦥 Unsloth Zoo will now patch everything to make training faster!
+TRL supports completion_only_loss; length field is `max_seq_length`.
+Loading data...
+Total: 778  |  train pool: 588  |  held-out test: 190
+Train-pool state counts: {0: 41, 1: 41, 2: 471, 3: 35}
+
+============================================================
+PREFLIGHT: token budget
+  system prompt                : 1054
+  full example min/med/max     : 1074 / 1080 / 1122
+  required (max + 8 margin)   : 1130
+  MAX_SEQ_LEN                  : 1536
+============================================================
+  answer survives truncation   : OK (tail = '<|im_end|>\n<|im_start|>assistant\n10<|im_end|>')
+
+Optuna: 0 complete trial(s) found, running 1 more.
+
+************************************************************
+  Trial 0  |  r=8, alpha=8, lr=1.34e-04
+************************************************************
+
+============================================================
+  Fold=1/2  |  rank=8, alpha=8, lr=1.34e-04
+  Train: 412 (oversampled), Val: 294
+============================================================
+
+==((====))==  Unsloth 2026.3.18: Fast Qwen3_5_MoE patching. Transformers: 5.3.0.
+   \\   /|    NVIDIA RTX 6000 Ada Generation. Num GPUs = 2. Max memory: 47.374 GB. Platform: Linux.
+O^O/ \_/ \    Torch: 2.11.0+cu130. CUDA: 8.9. CUDA Toolkit: 13.0. Triton: 3.6.0
+\        /    Bfloat16 = TRUE. FA [Xformers = 0.0.35. FA2 = False]
+ "-____-"     Free license: http://github.com/unslothai/unsloth
+Unsloth: Fast downloading is enabled - ignore downloading bars which are red colored!
+Unsloth: Making `model.base_model.model.model.language_model` require gradients
+trainable params: 1,720,320 || all params: 35,108,902,256 || trainable%: 0.0049
+  [check] tokenized train len max=1120 cap=1536 at_cap=0
+Unsloth: Will smartly offload gradients to save VRAM!
+{'loss': '38.17', 'grad_norm': '5.991', 'learning_rate': '5.346e-05', 'epoch': '0.09709'}
+{'loss': '33.45', 'grad_norm': '7.761', 'learning_rate': '0.0001203', 'epoch': '0.1942'}
+{'loss': '16.68', 'grad_norm': '3.432', 'learning_rate': '0.0001209', 'epoch': '0.2913'}
+{'loss': '8.049', 'grad_norm': '3.678', 'learning_rate': '0.000105', 'epoch': '0.3883'}
+{'loss': '4.11', 'grad_norm': '4.399', 'learning_rate': '8.91e-05', 'epoch': '0.4854'}
+{'loss': '1.533', 'grad_norm': '2.756', 'learning_rate': '7.319e-05', 'epoch': '0.5825'}
+{'loss': '1.736', 'grad_norm': '1.949', 'learning_rate': '5.728e-05', 'epoch': '0.6796'}
+{'loss': '1.309', 'grad_norm': '2.283', 'learning_rate': '4.137e-05', 'epoch': '0.7767'}
+{'loss': '0.8555', 'grad_norm': '0.9543', 'learning_rate': '2.546e-05', 'epoch': '0.8738'}
+{'loss': '0.9492', 'grad_norm': '2.84', 'learning_rate': '9.547e-06', 'epoch': '0.9709'}
+{'eval_loss': '0.1399', 'eval_runtime': '197.7', 'eval_samples_per_second': '1.487', 'eval_steps_per_second': '1.487', 'epoch': '0.9709'}
+{'train_runtime': '1110', 'train_samples_per_second': '0.371', 'train_steps_per_second': '0.047', 'train_loss': '10.29', 'epoch': '1'}
+    [gen trial0_fold0 0] gold=10  raw='10'  parsed=(1,0)  ok=True  review='lack of dependability on hours'
+    [gen trial0_fold0 1] gold=11  raw='11'  parsed=(1,1)  ok=True  review='mandatory overtime forced to work on your off days'
+    [gen trial0_fold0 2] gold=10  raw='10'  parsed=(1,0)  ok=True  review='work life balance not ensured'
+    [gen trial0_fold0 3] gold=10  raw='10'  parsed=(1,0)  ok=True  review='management was strict with scheduling, would not a'
+    [gen trial0_fold0 4] gold=10  raw='10'  parsed=(1,0)  ok=True  review='long hours, schedule can be difficult.'
+    [gen trial0_fold0 5] gold=10  raw='10'  parsed=(1,0)  ok=True  review='you will get laid off if you miss work do to a fam'
+    [gen trial0_fold0 6] gold=10  raw='10'  parsed=(1,0)  ok=True  review='a lot of hours to work in a week if you are a mana'
+    [gen trial0_fold0 7] gold=10  raw='10'  parsed=(1,0)  ok=True  review='the work days are always random.'
+
+  Fold metrics: schedule_f1=0.9495  jobcontrol_f1=0.7529  macro_f1=0.8512  malformed=0 (0.0%)  |  stopped at epoch 1.00
+
+============================================================
+  Fold=2/2  |  rank=8, alpha=8, lr=1.34e-04
+  Train: 410 (oversampled), Val: 294
+============================================================
+
+==((====))==  Unsloth 2026.3.18: Fast Qwen3_5_MoE patching. Transformers: 5.3.0.
+   \\   /|    NVIDIA RTX 6000 Ada Generation. Num GPUs = 2. Max memory: 47.374 GB. Platform: Linux.
+O^O/ \_/ \    Torch: 2.11.0+cu130. CUDA: 8.9. CUDA Toolkit: 13.0. Triton: 3.6.0
+\        /    Bfloat16 = TRUE. FA [Xformers = 0.0.35. FA2 = False]
+ "-____-"     Free license: http://github.com/unslothai/unsloth
+Unsloth: Fast downloading is enabled - ignore downloading bars which are red colored!
+Unsloth: Making `model.base_model.model.model.language_model` require gradients
+trainable params: 1,720,320 || all params: 35,108,902,256 || trainable%: 0.0049
+  [check] tokenized train len max=1122 cap=1536 at_cap=0
+Unsloth: Will smartly offload gradients to save VRAM!
+{'loss': '37.65', 'grad_norm': '6.402', 'learning_rate': '5.346e-05', 'epoch': '0.09756'}
+{'loss': '32.94', 'grad_norm': '8.476', 'learning_rate': '0.0001203', 'epoch': '0.1951'}
+{'loss': '17.14', 'grad_norm': '3.41', 'learning_rate': '0.0001209', 'epoch': '0.2927'}
+{'loss': '8.843', 'grad_norm': '3.596', 'learning_rate': '0.000105', 'epoch': '0.3902'}
+{'loss': '4.542', 'grad_norm': '2.211', 'learning_rate': '8.91e-05', 'epoch': '0.4878'}
+{'loss': '1.187', 'grad_norm': '1.381', 'learning_rate': '7.319e-05', 'epoch': '0.5854'}
+{'loss': '0.9131', 'grad_norm': '1.693', 'learning_rate': '5.728e-05', 'epoch': '0.6829'}
+{'loss': '0.7639', 'grad_norm': '0.5171', 'learning_rate': '4.137e-05', 'epoch': '0.7805'}
+{'loss': '1.837', 'grad_norm': '3.046', 'learning_rate': '2.546e-05', 'epoch': '0.878'}
+{'loss': '0.6987', 'grad_norm': '1.145', 'learning_rate': '9.547e-06', 'epoch': '0.9756'}
+{'eval_loss': '0.1126', 'eval_runtime': '197.4', 'eval_samples_per_second': '1.489', 'eval_steps_per_second': '1.489', 'epoch': '0.9756'}
+{'train_runtime': '1127', 'train_samples_per_second': '0.364', 'train_steps_per_second': '0.046', 'train_loss': '10.29', 'epoch': '1'}
+    [gen trial0_fold1 0] gold=10  raw='10'  parsed=(1,0)  ok=True  review="didn't get a lot of hours"
+    [gen trial0_fold1 1] gold=10  raw='10'  parsed=(1,0)  ok=True  review='work life balance. management. progression'
+    [gen trial0_fold1 2] gold=10  raw='10'  parsed=(1,0)  ok=True  review='did not like the hours'
+    [gen trial0_fold1 3] gold=10  raw='10'  parsed=(1,0)  ok=True  review='budget hours, work on holidays, small raises,'
+    [gen trial0_fold1 4] gold=10  raw='10'  parsed=(1,0)  ok=True  review="physically demanding work, don't expect to have a "
+    [gen trial0_fold1 5] gold=10  raw='10'  parsed=(1,0)  ok=True  review='the schedule can be tough on family life. i work m'
+    [gen trial0_fold1 6] gold=10  raw='10'  parsed=(1,0)  ok=True  review='job can be demanding on the person when balancing '
+    [gen trial0_fold1 7] gold=11  raw='01'  parsed=(0,1)  ok=True  review='lot of work and balance of work and professional c'
+
+  Fold metrics: schedule_f1=0.9666  jobcontrol_f1=0.5946  macro_f1=0.7806  malformed=0 (0.0%)  |  stopped at epoch 1.00
+
+  Trial 0 done  |  mean_schedule_f1=0.9580  mean_macro_f1=0.8159  mean_jobctrl_f1=0.6738  max_malformed_frac=0.0%
+
+============================================================
+OPTUNA SEARCH RESULTS
+============================================================
+  trial=0  mean_schedule_f1=0.9580  mean_macro_f1=0.8159  params={'r': 8, 'lr': 0.00013365478003078208, 'alpha_mode': 'r'}
+
+Best: trial=0  schedule_f1=0.9580  macro_f1=0.8159  config={'lora_rank': 8, 'lora_alpha': 8, 'learning_rate': 0.00013365478003078208}
+
+Results saved to models/cv_results_multilabel/Qwen3.5-35B-A3B/cv_results_v2_smoke.json
+Raw generations in models/cv_results_multilabel/Qwen3.5-35B-A3B/generations/
+
+ML_SKIP_FINAL set: skipping final training, leaving FINAL_DIR untouched.
+Done!
