@@ -252,7 +252,13 @@ def _load_lora(config):
         load_in_4bit=True,
         load_in_16bit=False,
         full_finetuning=False,
-        device_map="auto",
+        # "auto" measures free VRAM and, once fragmentation from many sequential
+        # load/unload cycles eats into it, silently offloads some modules to CPU/disk
+        # -- which 4-bit bitsandbytes weights can't do, raising ValueError (not
+        # OutOfMemoryError) and killing the whole Optuna study. "balanced" always
+        # splits across both GPUs instead of falling back to CPU/disk. Matches
+        # 12.evaluate_multilabel.py, which already uses "balanced" for this reason.
+        device_map="balanced",
     )
     if hasattr(tokenizer, "tokenizer"):
         tokenizer = tokenizer.tokenizer
